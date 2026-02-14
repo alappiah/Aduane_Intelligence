@@ -24,9 +24,9 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 60),
               const Center(
                 child: Text(
-                  "Yum AI",
+                  "Aduane Intelligence",
                   style: TextStyle(
-                    fontSize: 48,
+                    fontSize: 40,
                     fontWeight: FontWeight.w400,
                     color: Colors.black87,
                   ),
@@ -107,7 +107,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.pushNamed(context, "/home_screen");
+                  },
                   child: const Text(
                     "Login",
                     style: TextStyle(color: Colors.white, fontSize: 18),

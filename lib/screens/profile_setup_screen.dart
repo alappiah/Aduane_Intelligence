@@ -130,7 +130,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     ),
                   ),
 
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.pushNamed(context, "/home_screen");
+                  },
                   child: const Text(
                     "Register",
                     style: TextStyle(color: Colors.white, fontSize: 18),
