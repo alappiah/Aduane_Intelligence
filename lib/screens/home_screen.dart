@@ -13,6 +13,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFE3EAEF),
       body: SafeArea(
         child: Stack(
           children: [
@@ -39,6 +40,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 30),
                     TextField(
+                      onTap: () {
+                        Navigator.pushNamed(context, "/chat_screen");
+                      },
+                      readOnly: true,
                       decoration: InputDecoration(
                         hintText: "What are you craving today?",
                         prefixIcon: const Icon(
