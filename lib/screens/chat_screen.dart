@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import '../widgets/recipe_card.dart'; 
+import '../widgets/recipe_card.dart';
+import '../services/api_service.dart'; // Import your service
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  // Catch the user data passed from Login/Home
+  final Map<String, dynamic> user;
+  const ChatScreen({super.key, required this.user});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -12,64 +15,93 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final Dio _dio = Dio(BaseOptions(baseUrl: 'http://10.0.2.2:8000')); // Android Emulator IP
+  final Dio _dio = Dio(BaseOptions(baseUrl: ApiService.baseUrl));
 
-  // This list holds the chat history
-  final List<Map<String, dynamic>> _messages = [
-    {
-      "isMe": false,
-      "text": "Hello Simon! I am your personal nutritionist. What are you craving today?",
-      "recipes": [] // No recipes in the welcome message
-    }
-  ];
-
+  final List<Map<String, dynamic>> _messages = [];
   bool _isLoading = false;
 
-  // --- API FUNCTION ---
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory(); // Load private history on startup
+  }
+
+  // Load history from PostgreSQL
+  Future<void> _loadHistory() async {
+    setState(() => _isLoading = true);
+    final history = await ApiService.getChatHistory(widget.user['id']);
+
+    setState(() {
+      for (var msg in history) {
+        _messages.add({
+          "isMe": msg['sender'] == 'user',
+          "text": msg['content'],
+          "recipes": [],
+        });
+      }
+      // If history is empty, add the welcome message
+      if (_messages.isEmpty) {
+        _messages.add({
+          "isMe": false,
+          "text":
+              "Hello ${widget.user['firstName']}! I am your personal nutritionist. What are you craving today?",
+          "recipes": [],
+        });
+      }
+      _isLoading = false;
+    });
+    _scrollToBottom();
+  }
+
   Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
-    // 1. Add User Message immediately
+    // 1. UI Update & Save User Message to DB
     setState(() {
       _messages.add({"isMe": true, "text": text, "recipes": []});
       _isLoading = true;
     });
+
+    // Save to DB in background
+    ApiService.saveChatMessage(widget.user['id'], text, 'user');
+
     _textController.clear();
     _scrollToBottom();
 
     try {
-      // 2. Call FastAPI
-      // NOTE: We are hardcoding "Hypertension" for testing. 
-      // Later you can pass this from the Profile screen.
-      final response = await _dio.post('/recommend', data: {
-        "query": text,
-        "health_condition": "Hypertension" 
-      });
+      // 2. Call recommendation engine using USER'S condition
+      final response = await _dio.post(
+        '/recipes/recommend',
+        data: {
+          "query": text,
+          "health_condition": widget.user['health_condition'],
+        },
+      );
 
       final data = response.data;
+      final aiMsg = data['ai_message'] ?? "Here are some options:";
 
-      // 3. Add AI Response
+      // 3. UI Update & Save AI Message to DB
       setState(() {
         _messages.add({
           "isMe": false,
-          "text": data['ai_message'] ?? "Here are some options:",
-          "recipes": data['results'] ?? [] // The list of 3 recipes
+          "text": aiMsg,
+          "recipes": data['results'] ?? [],
         });
         _isLoading = false;
       });
-      _scrollToBottom();
 
+      ApiService.saveChatMessage(widget.user['id'], aiMsg, 'ai');
+      _scrollToBottom();
     } catch (e) {
-      // Handle Error
       setState(() {
         _messages.add({
           "isMe": false,
-          "text": "I'm having trouble connecting to the kitchen server. Is your Python backend running? (Error: $e)",
-          "recipes": []
+          "text": "Connection error. Is the server running?",
+          "recipes": [],
         });
         _isLoading = false;
       });
-      _scrollToBottom();
     }
   }
 
@@ -120,7 +152,10 @@ class _ChatScreenState extends State<ChatScreen> {
           if (_isLoading)
             const Padding(
               padding: EdgeInsets.all(8.0),
-              child: Text("Consulting the nutritionist...", style: TextStyle(color: Colors.grey)),
+              child: Text(
+                "Consulting the nutritionist...",
+                style: TextStyle(color: Colors.grey),
+              ),
             ),
 
           // INPUT AREA
@@ -136,17 +171,23 @@ class _ChatScreenState extends State<ChatScreen> {
     required List<dynamic> recipes,
   }) {
     return Column(
-      crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment:
+          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+          mainAxisAlignment:
+              isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (!isMe) ...[
               const CircleAvatar(
                 backgroundColor: Color(0xFFD9D9D9),
                 radius: 16,
-                child: Icon(Icons.health_and_safety, size: 16, color: Colors.black54),
+                child: Icon(
+                  Icons.health_and_safety,
+                  size: 16,
+                  color: Colors.black54,
+                ),
               ),
               const SizedBox(width: 12),
             ],
@@ -160,8 +201,14 @@ class _ChatScreenState extends State<ChatScreen> {
                   borderRadius: BorderRadius.only(
                     topLeft: const Radius.circular(12),
                     topRight: const Radius.circular(12),
-                    bottomLeft: isMe ? const Radius.circular(12) : const Radius.circular(2),
-                    bottomRight: isMe ? const Radius.circular(2) : const Radius.circular(12),
+                    bottomLeft:
+                        isMe
+                            ? const Radius.circular(12)
+                            : const Radius.circular(2),
+                    bottomRight:
+                        isMe
+                            ? const Radius.circular(2)
+                            : const Radius.circular(12),
                   ),
                 ),
                 child: Text(
@@ -175,7 +222,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ],
         ),
-        
+
         // RECIPE CARDS CAROUSEL (Only if there are recipes)
         if (recipes.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -184,7 +231,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               // Add left padding to align with the bot text
-              padding: const EdgeInsets.only(left: 44), 
+              padding: const EdgeInsets.only(left: 44),
               itemCount: recipes.length,
               itemBuilder: (context, index) {
                 // Use the RecipeCard widget we created earlier
@@ -193,7 +240,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
         ],
-        
+
         const SizedBox(height: 24), // Spacing between messages
       ],
     );
@@ -216,7 +263,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   borderRadius: BorderRadius.circular(30),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
               ),
               onSubmitted: _sendMessage, // Allow Enter key to send
             ),
@@ -234,4 +284,3 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 }
-

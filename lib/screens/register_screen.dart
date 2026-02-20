@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'profile_setup_screen.dart'; // Make sure this points to your Profile Setup file
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -9,6 +10,18 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   bool isRegister = true;
+
+  // 1. ADDED: Controllers to "listen" to what the user types
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  // ADDED: Good practice to clean up controllers when the screen closes
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +86,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 style: TextStyle(fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 8),
-              _buildTextField(hintText: "Enter Email"),
+              // 2. ADDED: Passed the email controller here
+              _buildTextField(
+                hintText: "Enter Email",
+                controller: _emailController,
+              ),
               const SizedBox(height: 24),
               //Password Field
               const Text(
@@ -81,7 +98,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 style: TextStyle(fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 8),
-              _buildTextField(hintText: "Enter Password", isPassword: true),
+              // 2. ADDED: Passed the password controller here
+              _buildTextField(
+                hintText: "Enter Password",
+                isPassword: true,
+                controller: _passwordController,
+              ),
               const SizedBox(height: 40),
               //main continue button
               SizedBox(
@@ -94,9 +116,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-
                   onPressed: () {
-                    Navigator.pushNamed(context, '/profile_setup_screen');
+                    String email = _emailController.text.trim();
+                    String password = _passwordController.text;
+
+                    // 1. Define the Regex
+                    final passwordRegEx = RegExp(
+                      r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$',
+                    );
+
+                    // 2. Run the check
+                    if (!passwordRegEx.hasMatch(password)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            "Password must be at least 8 characters and include both letters and numbers.",
+                          ),
+                          backgroundColor: Colors.redAccent,
+                        ),
+                      );
+                      return; // Stop here! Don't go to the next screen.
+                    }
+
+                    // 3. If valid, proceed to Profile Setup
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) => ProfileSetupScreen(
+                              email: email,
+                              password: password,
+                            ),
+                      ),
+                    );
                   },
                   child: const Text(
                     "Continue",
@@ -139,9 +191,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // Helper widget for text fields
-  Widget _buildTextField({required String hintText, bool isPassword = false}) {
+  // 4. ADDED: 'TextEditingController? controller' to the parameters so it can accept the controllers
+  Widget _buildTextField({
+    required String hintText,
+    bool isPassword = false,
+    TextEditingController? controller,
+  }) {
     return TextField(
+      controller:
+          controller, // <-- ADDED: Connects the text field to the controller
       obscureText: isPassword,
       decoration: InputDecoration(
         filled: true,

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
+import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -10,6 +12,62 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool isLogin = true; //State to toggle between login and register
   bool rememberMe = false;
+
+  // 1. ADDED: Controllers to grab the typed email and password
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  // 2. ADDED: Loading state for the button spinner
+  bool isLoading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  // 3. ADDED: The function that checks credentials with the Python backend
+  // 3. ADDED: The function that checks credentials with the Python backend
+  void _submitLogin() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill in both fields")),
+      );
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    // Call API and catch the user data (it will be null if login fails)
+    final userData = await ApiService.loginUser(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+    );
+
+    setState(() => isLoading = false);
+
+    if (userData != null) {
+      // If it's not null, login was successful!
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => HomeScreen(
+                  user: userData,
+                ), // Pass the userData map directly!
+          ),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Invalid email or password")),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +114,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 8),
-              _buildTextField(hintText: "Enter Email"),
+              // 5. ADDED: Connect the email controller
+              _buildTextField(
+                hintText: "Enter Email",
+                controller: _emailController,
+              ),
 
               const SizedBox(height: 24),
 
@@ -66,7 +128,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 8),
-              _buildTextField(hintText: "Enter Password"),
+              // 5. ADDED: Connect the password controller
+              _buildTextField(
+                hintText: "Enter Password",
+                isPassword: true,
+                controller: _passwordController,
+              ),
 
               const SizedBox(height: 8),
 
@@ -106,14 +173,22 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-
-                  onPressed: () {
-                    Navigator.pushNamed(context, "/home_screen");
-                  },
-                  child: const Text(
-                    "Login",
-                    style: TextStyle(color: Colors.white, fontSize: 18),
-                  ),
+                  // 6. ADDED: Trigger the login function and show spinner if loading
+                  onPressed: isLoading ? null : _submitLogin,
+                  child:
+                      isLoading
+                          ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                          : const Text(
+                            "Login",
+                            style: TextStyle(color: Colors.white, fontSize: 18),
+                          ),
                 ),
               ),
               const SizedBox(height: 40),
@@ -174,9 +249,14 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Helper widget for text fields
-  Widget _buildTextField({required String hintText, bool isPassword = false}) {
+  // 7. ADDED: Allow the helper widget to accept the text controllers
+  Widget _buildTextField({
+    required String hintText,
+    bool isPassword = false,
+    TextEditingController? controller,
+  }) {
     return TextField(
+      controller: controller, // <-- Connects the UI to the controller
       obscureText: isPassword,
       decoration: InputDecoration(
         filled: true,

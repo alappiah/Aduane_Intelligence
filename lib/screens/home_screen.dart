@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final Map<String, dynamic> user;
+
+  const HomeScreen({super.key, required this.user});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -25,9 +28,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const SizedBox(height: 40),
-                    const Text(
-                      "Welcome Simon",
-                      style: TextStyle(
+                    Text(
+                      "Welcome ${widget.user['firstName']}", // <-- Dynamically grabs the user's first name
+                      style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF1E1E1E),
@@ -41,7 +44,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 30),
                     TextField(
                       onTap: () {
-                        Navigator.pushNamed(context, "/chat_screen");
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ChatScreen(user: widget.user), // <-- FIXED: Changed response.data to widget.user
+                          ),
+                        );
                       },
                       readOnly: true,
                       decoration: InputDecoration(
@@ -74,69 +82,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-        // child: Padding(
-        //   padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        //   child: Column(
-        //     crossAxisAlignment: CrossAxisAlignment.start,
-        //     children: [
-        //       const SizedBox(height: 60),
-        //       //Welcome header
-        //       const Text(
-        //         "Welcome Simon",
-        //         style: TextStyle(
-        //           fontSize: 28,
-        //           fontWeight: FontWeight.bold,
-        //           color: Color(0xFF1E1E1E),
-        //         ),
-        //       ),
-        //       const SizedBox(height: 30),
-        //       const Text(
-        //         "Get personalized food recommedation",
-        //         style: TextStyle(color: Colors.black54, fontSize: 14),
-        //       ),
-        //       const SizedBox(height: 30),
-
-        //       //SizedBox
-        //       TextField(
-        //         decoration: InputDecoration(
-        //           hintText: "What are you craving today?",
-        //           prefixIcon: const Icon(Icons.search, color: Colors.black54),
-        //           filled: true,
-        //           fillColor: Colors.white.withOpacity(0.5),
-        //           border: OutlineInputBorder(
-        //             borderRadius: BorderRadius.circular(30),
-        //             borderSide: BorderSide.none,
-        //           ),
-        //           contentPadding: const EdgeInsets.symmetric(vertical: 15),
-        //         ),
-        //       ),
-        //       const SizedBox(height: 40),
-        //       // Grid of Food/Category Cards
-        //       Expanded(
-        //         child: GridView.builder(
-        //           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        //             crossAxisCount: 2, // Two items per row
-        //             crossAxisSpacing: 20,
-        //             mainAxisSpacing: 20,
-        //             childAspectRatio: 1, // Square cards
-        //           ),
-        //           itemCount: 4, // Number of placeholder cards
-        //           itemBuilder: (context, index) {
-        //             return Container(
-        //               decoration: BoxDecoration(
-        //                 color: const Color(0xFFE8D3D4), // Slightly darker pink for cards
-        //                 borderRadius: BorderRadius.circular(25),
-        //               ),
-        //             );
-        //           },
-        //         ),
-        //       ),
-        //       //Custom Navigation bar
-        //       _buildBottomNav(),
-        //       const SizedBox(height: 20)
-        //     ],
-        //   ),
-        // ),
       ),
     );
   }
