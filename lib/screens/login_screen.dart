@@ -10,15 +10,18 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  bool isLogin = true; //State to toggle between login and register
+  bool isLogin = true; // State to toggle between login and register
   bool rememberMe = false;
 
-  // 1. ADDED: Controllers to grab the typed email and password
+  // Controllers to grab the typed email and password
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  // 2. ADDED: Loading state for the button spinner
+  // Loading state for the button spinner
   bool isLoading = false;
+
+  // NEW: State variable to track if the password should be hidden
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -27,8 +30,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // 3. ADDED: The function that checks credentials with the Python backend
-  // 3. ADDED: The function that checks credentials with the Python backend
+  // The function that checks credentials with the Python backend
   void _submitLogin() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -40,8 +42,9 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => isLoading = true);
 
     // Call API and catch the user data (it will be null if login fails)
+    // NOTE: Added .toLowerCase() to prevent auto-capitalization bugs!
     final userData = await ApiService.loginUser(
-      email: _emailController.text.trim(),
+      email: _emailController.text.trim().toLowerCase(),
       password: _passwordController.text,
     );
 
@@ -54,9 +57,8 @@ class _LoginScreenState extends State<LoginScreen> {
           context,
           MaterialPageRoute(
             builder:
-                (context) => HomeScreen(
-                  user: userData,
-                ), // Pass the userData map directly!
+                (context) =>
+                    HomeScreen(user: userData), // Pass the userData map
           ),
         );
       }
@@ -72,7 +74,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // backgroundColor: const Color(0xFFFDE8E9),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -92,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 40),
 
-              //Login/Register toggle
+              // Login/Register toggle
               Container(
                 height: 50,
                 decoration: BoxDecoration(
@@ -108,13 +109,12 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 40),
 
-              //Email Field
+              // Email Field
               const Text(
                 "Email Address",
                 style: TextStyle(fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 8),
-              // 5. ADDED: Connect the email controller
               _buildTextField(
                 hintText: "Enter Email",
                 controller: _emailController,
@@ -122,13 +122,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 24),
 
-              //Password Field
+              // Password Field
               const Text(
                 "Password",
                 style: TextStyle(fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 8),
-              // 5. ADDED: Connect the password controller
               _buildTextField(
                 hintText: "Enter Password",
                 isPassword: true,
@@ -162,7 +161,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 32),
 
-              //main login button
+              // Main login button
               SizedBox(
                 width: double.infinity,
                 height: 55,
@@ -173,7 +172,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  // 6. ADDED: Trigger the login function and show spinner if loading
                   onPressed: isLoading ? null : _submitLogin,
                   child:
                       isLoading
@@ -221,15 +219,14 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  //Helper widget for the Toggle button
+  // Helper widget for the Toggle button
   Widget _buildToggleButton(String title, bool isActive) {
     return GestureDetector(
       onTap: () {
         if (title == "Register") {
-          //Navigates to the register route defined in main.dart
           Navigator.pushNamed(context, '/register');
         } else {
-          setState(() => (title == "Login"));
+          setState(() => isLogin = true); // Slightly cleaned up logic
         }
       },
       child: Container(
@@ -249,26 +246,43 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // 7. ADDED: Allow the helper widget to accept the text controllers
+  // Helper widget for text fields with visibility toggle
   Widget _buildTextField({
     required String hintText,
     bool isPassword = false,
     TextEditingController? controller,
   }) {
     return TextField(
-      controller: controller, // <-- Connects the UI to the controller
-      obscureText: isPassword,
+      controller: controller,
+
+      // If it's a password field, check our boolean state. Otherwise, never obscure.
+      obscureText: isPassword ? _obscurePassword : false,
+
       decoration: InputDecoration(
         filled: true,
-        fillColor: Color(0xFFC3C3C3),
+        fillColor: const Color(0xFFC3C3C3),
         hintText: hintText,
+
+        // Use an IconButton if it's a password field
         suffixIcon:
             isPassword
-                ? const Icon(
-                  Icons.visibility_off_outlined,
-                  color: Colors.black54,
+                ? IconButton(
+                  icon: Icon(
+                    // Swap between the open eye and closed eye icon
+                    _obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: Colors.black54,
+                  ),
+                  onPressed: () {
+                    // Tell Flutter to redraw the screen with the new state
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
                 )
                 : null,
+
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(30),
           borderSide: BorderSide.none,

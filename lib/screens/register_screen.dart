@@ -11,11 +11,12 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   bool isRegister = true;
 
-  // 1. ADDED: Controllers to "listen" to what the user types
+  // ADDED: State variable to track if the password is hidden or visible
+  bool _obscurePassword = true;
+
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  // ADDED: Good practice to clean up controllers when the screen closes
   @override
   void dispose() {
     _emailController.dispose();
@@ -86,7 +87,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 style: TextStyle(fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 8),
-              // 2. ADDED: Passed the email controller here
               _buildTextField(
                 hintText: "Enter Email",
                 controller: _emailController,
@@ -98,7 +98,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 style: TextStyle(fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 8),
-              // 2. ADDED: Passed the password controller here
               _buildTextField(
                 hintText: "Enter Password",
                 isPassword: true,
@@ -120,12 +119,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     String email = _emailController.text.trim();
                     String password = _passwordController.text;
 
-                    // 1. Define the Regex
+                    // FIXED: Regex now allows special characters
                     final passwordRegEx = RegExp(
-                      r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$',
+                      r'^(?=.*[A-Za-z])(?=.*\d).{8,}$',
                     );
 
-                    // 2. Run the check
                     if (!passwordRegEx.hasMatch(password)) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -135,10 +133,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           backgroundColor: Colors.redAccent,
                         ),
                       );
-                      return; // Stop here! Don't go to the next screen.
+                      return;
                     }
 
-                    // 3. If valid, proceed to Profile Setup
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -168,7 +165,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return GestureDetector(
       onTap: () {
         if (title == "Login") {
-          //Navigates to the register route defined in main.dart
           Navigator.pop(context);
         } else {
           setState(() => isRegister = true);
@@ -191,25 +187,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // 4. ADDED: 'TextEditingController? controller' to the parameters so it can accept the controllers
+  // Helper widget for text fields
   Widget _buildTextField({
     required String hintText,
     bool isPassword = false,
     TextEditingController? controller,
   }) {
     return TextField(
-      controller:
-          controller, // <-- ADDED: Connects the text field to the controller
-      obscureText: isPassword,
+      controller: controller,
+      // FIXED: Uses the state variable instead of the static 'isPassword' boolean
+      obscureText: isPassword ? _obscurePassword : false,
       decoration: InputDecoration(
         filled: true,
-        fillColor: Color(0xFFC3C3C3),
+        fillColor: const Color(0xFFC3C3C3),
         hintText: hintText,
+        // FIXED: Replaced static Icon with an IconButton that triggers setState
         suffixIcon:
             isPassword
-                ? const Icon(
-                  Icons.visibility_off_outlined,
-                  color: Colors.black54,
+                ? IconButton(
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: Colors.black54,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword =
+                          !_obscurePassword; // Toggles the visibility state
+                    });
+                  },
                 )
                 : null,
         border: OutlineInputBorder(
