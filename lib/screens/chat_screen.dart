@@ -71,7 +71,7 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       // 2. Call recommendation engine using USER'S condition
       final response = await _dio.post(
-        '/recipes/recommend',
+        '/chat/message',
         data: {
           "query": text,
           "health_condition": widget.user['health_condition'],
