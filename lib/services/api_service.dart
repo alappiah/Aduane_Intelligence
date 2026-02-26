@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 class ApiService {
   // If using Android Emulator, 10.0.2.2 points to your laptop's localhost.
   static const String baseUrl = 'http://192.168.100.79:8000';
+  // static const String baseUrl = 'http://172.20.10.2:8000';
 
   // Create a single Dio instance to use across your service
   static final Dio _dio = Dio();
@@ -46,7 +47,6 @@ class ApiService {
     }
   }
 
-  
   // --- LOGIN FUNCTION ---
   static Future<Map<String, dynamic>?> loginUser({
     required String email,
@@ -94,12 +94,13 @@ class ApiService {
   static Future<void> saveChatMessage(
     int userId,
     String content,
-    String sender,
-  ) async {
+    String sender, {
+    List<dynamic>? recipes,
+  }) async {
     try {
       await _dio.post(
         '$baseUrl/chat/save/$userId',
-        data: {'content': content, 'sender': sender},
+        data: {'content': content, 'sender': sender, 'recipes': recipes ?? []},
       );
     } catch (e) {
       print("❌ Error saving message: $e");

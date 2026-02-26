@@ -36,7 +36,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _messages.add({
           "isMe": msg['sender'] == 'user',
           "text": msg['content'],
-          "recipes": [],
+          "recipes": msg['recipes'] ?? [],
         });
       }
       // If history is empty, add the welcome message
@@ -91,7 +91,12 @@ class _ChatScreenState extends State<ChatScreen> {
         _isLoading = false;
       });
 
-      ApiService.saveChatMessage(widget.user['id'], aiMsg, 'ai');
+      ApiService.saveChatMessage(
+        widget.user['id'],
+        aiMsg,
+        'ai',
+        recipes: data['results'],
+      );
       _scrollToBottom();
     } catch (e) {
       setState(() {
