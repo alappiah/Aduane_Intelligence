@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../widgets/recipe_card.dart';
-import '../services/api_service.dart'; // Import your service
+import '../services/api_service.dart';
+import 'dart:convert';
 
 class ChatScreen extends StatefulWidget {
   // Catch the user data passed from Login/Home
@@ -15,15 +16,29 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode(); // <-- ADD THI
   final Dio _dio = Dio(BaseOptions(baseUrl: ApiService.baseUrl));
 
   final List<Map<String, dynamic>> _messages = [];
   bool _isLoading = false;
+  bool _isGenerating = false; // Tracks if the AI is currently typing
+  CancelToken? _cancelToken;
+
+  int? _editingUserMsgId;
+  int? _editingAiMsgId;
+  int? _editingUiIndex; // Which bubble on the screen are we overwriting?
 
   @override
   void initState() {
     super.initState();
     _loadHistory(); // Load private history on startup
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    _focusNode.dispose(); // <-- ADD THIS
+    super.dispose();
   }
 
   // Load history from PostgreSQL
@@ -37,6 +52,7 @@ class _ChatScreenState extends State<ChatScreen> {
           "isMe": msg['sender'] == 'user',
           "text": msg['content'],
           "recipes": msg['recipes'] ?? [],
+          "id": msg['id'],
         });
       }
       // If history is empty, add the welcome message
@@ -56,56 +72,155 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
-    // 1. UI Update & Save User Message to DB
-    setState(() {
-      _messages.add({"isMe": true, "text": text, "recipes": []});
-      _isLoading = true;
-    });
+    if (_editingUserMsgId != null && _editingUiIndex != null) {
+      // --- 🟢 IN-PLACE UPDATE MODE ---
+      final uIdx = _editingUiIndex!;
+      final aIdx = uIdx + 1;
 
-    // Save to DB in background
-    ApiService.saveChatMessage(widget.user['id'], text, 'user');
+      setState(() {
+        _messages[uIdx]['text'] = text; // Update user bubble
+        _messages[aIdx]['text'] = ""; // Clear AI bubble for re-streaming
+        _messages[aIdx]['recipes'] = [];
+        _isLoading = true;
+      });
 
-    _textController.clear();
-    _scrollToBottom();
+      _textController.clear();
+      await ApiService.updateChatMessage(_editingUserMsgId!, text);
+
+      // Pass the existing AI ID to update the same row
+      await _startAiStream(text, aIdx, existingAiId: _editingAiMsgId);
+
+      // Reset edit state
+      setState(() {
+        _editingUserMsgId = null;
+        _editingAiMsgId = null;
+        _editingUiIndex = null;
+      });
+    } else {
+      // --- ⚪ NORMAL MODE ---
+      setState(() {
+        _messages.add({"isMe": true, "text": text, "recipes": []});
+        _isLoading = true;
+      });
+
+      final uIdx = _messages.length - 1;
+      _textController.clear();
+      _scrollToBottom();
+
+      // Save user prompt and capture ID
+      int? newUserId = await ApiService.saveChatMessage(
+        widget.user['id'],
+        text,
+        'user',
+      );
+      if (newUserId != null) {
+        setState(() => _messages[uIdx]['id'] = newUserId);
+      }
+
+      // Create AI placeholder
+      setState(() {
+        _messages.add({"isMe": false, "text": "", "recipes": []});
+      });
+
+      final aIdx = _messages.length - 1;
+      await _startAiStream(text, aIdx);
+    }
+  }
+
+  Future<void> _startAiStream(
+    String text,
+    int aiIndex, {
+    int? existingAiId,
+  }) async {
+    _cancelToken = CancelToken();
+    setState(() => _isGenerating = true);
 
     try {
-      // 2. Call recommendation engine using USER'S condition
-      final response = await _dio.post(
+      final response = await _dio.post<ResponseBody>(
         '/chat/message',
         data: {
           "query": text,
           "health_condition": widget.user['health_condition'],
         },
+        cancelToken: _cancelToken,
+        options: Options(
+          responseType: ResponseType.stream,
+          headers: {"Accept": "text/event-stream"},
+          receiveTimeout: const Duration(minutes: 5),
+        ),
       );
 
-      final data = response.data;
-      final aiMsg = data['ai_message'] ?? "Here are some options:";
+      response.data?.stream
+          .cast<List<int>>()
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen(
+            (String line) async {
+              if (line.startsWith('data: ')) {
+                final jsonStr = line.substring(6);
+                try {
+                  final packet = jsonDecode(jsonStr);
 
-      // 3. UI Update & Save AI Message to DB
-      setState(() {
-        _messages.add({
-          "isMe": false,
-          "text": aiMsg,
-          "recipes": data['results'] ?? [],
-        });
-        _isLoading = false;
-      });
+                  if (packet['type'] == 'text') {
+                    setState(
+                      () => _messages[aiIndex]['text'] += packet['content'],
+                    );
+                    _scrollToBottom();
+                  } else if (packet['type'] == 'recipe') {
+                    setState(
+                      () =>
+                          _messages[aiIndex]['recipes'].add(packet['content']),
+                    );
+                    _scrollToBottom();
+                  } else if (packet['type'] == 'done') {
+                    setState(() {
+                      _isLoading = false;
+                      _isGenerating = false;
+                    });
 
-      ApiService.saveChatMessage(
-        widget.user['id'],
-        aiMsg,
-        'ai',
-        recipes: data['results'],
-      );
-      _scrollToBottom();
+                    if (existingAiId != null) {
+                      // In-place Update Mode
+                      await ApiService.updateChatMessage(
+                        existingAiId,
+                        _messages[aiIndex]['text'],
+                        recipes: _messages[aiIndex]['recipes'],
+                      );
+                    } else {
+                      // Initial Save Mode
+                      int? newAiId = await ApiService.saveChatMessage(
+                        widget.user['id'],
+                        _messages[aiIndex]['text'],
+                        'ai',
+                        recipes: _messages[aiIndex]['recipes'],
+                      );
+                      if (newAiId != null) {
+                        setState(() => _messages[aiIndex]['id'] = newAiId);
+                      }
+                    }
+                  }
+                } catch (e) {
+                  print("JSON Parsing error: $e");
+                }
+              }
+            },
+            onError: (error) {
+              setState(() {
+                _isLoading = false;
+                _isGenerating = false;
+              });
+              // Add stop sign logic here if needed
+            },
+            onDone:
+                () => setState(() {
+                  _isLoading = false;
+                  _isGenerating = false;
+                }),
+          );
     } catch (e) {
+      print("Streaming Error: $e");
       setState(() {
-        _messages.add({
-          "isMe": false,
-          "text": "Connection error. Is the server running?",
-          "recipes": [],
-        });
         _isLoading = false;
+        _isGenerating = false;
       });
     }
   }
@@ -133,6 +248,14 @@ class _ChatScreenState extends State<ChatScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
+        // 🌟 ADD THIS ACTIONS BLOCK:
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_sweep, color: Colors.redAccent),
+            onPressed: _showDeleteConfirmation,
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Column(
         children: [
@@ -145,6 +268,7 @@ class _ChatScreenState extends State<ChatScreen> {
               itemBuilder: (context, index) {
                 final msg = _messages[index];
                 return _buildMessageRow(
+                  index: index, // <-- ADD THIS
                   isMe: msg['isMe'],
                   text: msg['text'],
                   recipes: msg['recipes'],
@@ -171,6 +295,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildMessageRow({
+    required int index,
     required bool isMe,
     required String text,
     required List<dynamic> recipes,
@@ -182,7 +307,8 @@ class _ChatScreenState extends State<ChatScreen> {
         Row(
           mainAxisAlignment:
               isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              CrossAxisAlignment.start, // aligns avatar/button to top
           children: [
             if (!isMe) ...[
               const CircleAvatar(
@@ -196,6 +322,39 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               const SizedBox(width: 12),
             ],
+
+            // --- 🟢 NEW: ADD THE EDIT BUTTON FOR USER MESSAGES ---
+            if (isMe)
+              IconButton(
+                icon: const Icon(Icons.edit, size: 20, color: Colors.grey),
+                padding:
+                    EdgeInsets.zero, // Keeps it snug against the chat bubble
+                constraints:
+                    const BoxConstraints(), // Removes extra default padding
+                onPressed: () async {
+                  if (_isGenerating) _cancelToken?.cancel();
+
+                  setState(() {
+                    // 1. Store the IDs for the backend UPDATE
+                    _editingUserMsgId = _messages[index]['id'];
+                    _editingUiIndex = index;
+
+                    // Grab the AI's ID (the bubble immediately after the user's)
+                    if (index + 1 < _messages.length &&
+                        !_messages[index + 1]['isMe']) {
+                      _editingAiMsgId = _messages[index + 1]['id'];
+                    }
+                  });
+
+                  // 2. Put text back into the controller for editing
+                  _textController.text = text;
+                  _focusNode.requestFocus();
+                },
+              ),
+
+            if (isMe)
+              const SizedBox(width: 8), // Small gap between pencil and bubble
+            // ----------------------------------------------------
 
             // TEXT BUBBLE
             Flexible(
@@ -260,6 +419,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: TextField(
               controller: _textController,
+              focusNode: _focusNode,
               decoration: InputDecoration(
                 hintText: "Ask (e.g., Spicy Lunch)...",
                 filled: true,
@@ -278,14 +438,89 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           const SizedBox(width: 8),
           CircleAvatar(
-            backgroundColor: const Color(0xFF41B9A1),
+            backgroundColor:
+                _isGenerating ? Colors.redAccent : const Color(0xFF41B9A1),
             child: IconButton(
-              icon: const Icon(Icons.send, color: Colors.white),
-              onPressed: () => _sendMessage(_textController.text),
+              // If generating, show a Stop icon. Otherwise, show Send.
+              icon: Icon(
+                _isGenerating ? Icons.stop : Icons.send,
+                color: Colors.white,
+              ),
+              onPressed: () {
+                if (_isGenerating) {
+                  // Fire the kill-switch!
+                  _cancelToken?.cancel("User pressed stop.");
+                } else {
+                  // Send the message normally
+                  _sendMessage(_textController.text);
+                }
+              },
             ),
           ),
         ],
       ),
+    );
+  }
+
+  void _showDeleteConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Clear All History?"),
+          content: const Text(
+            "This will permanently delete all your nutritional consultations. This action cannot be undone.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context), // Close the popup
+              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context); // Close the popup
+                setState(() => _isLoading = true);
+
+                // 1. Call the backend to wipe PostgreSQL
+                bool success = await ApiService.deleteChatHistory(
+                  widget.user['id'],
+                );
+
+                if (success) {
+                  setState(() {
+                    // 2. Clear the local UI list
+                    _messages.clear();
+
+                    // 3. Re-insert the welcome message so the screen isn't empty
+                    _messages.add({
+                      "isMe": false,
+                      "text":
+                          "Hello ${widget.user['firstName']}! Your history has been cleared. How can I help with your meal planning today?",
+                      "recipes": [],
+                    });
+                  });
+
+                  // 🌟 4. SHOW THE SNACKBAR (Toast)
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Chat history successfully deleted"),
+                      backgroundColor: Colors.redAccent,
+                      behavior: SnackBarBehavior.floating,
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                }
+
+                setState(() => _isLoading = false);
+              },
+              child: const Text(
+                "Delete Everything",
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

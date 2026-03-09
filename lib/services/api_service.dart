@@ -2,9 +2,11 @@ import 'package:dio/dio.dart';
 
 class ApiService {
   // If using Android Emulator, 10.0.2.2 points to your laptop's localhost.
-  static const String baseUrl = 'http://192.168.100.79:8000';
-  // static const String baseUrl = 'http://172.20.10.2:8000';
+  // static const String baseUrl = 'http://192.168.100.79:8000';?\
+  static const String baseUrl = 'http://192.168.8.104:8000';
+  // static const String baseUrl = 'http://10.0.2.2:8000';
 
+  //uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
   // Create a single Dio instance to use across your service
   static final Dio _dio = Dio();
 
@@ -91,19 +93,49 @@ class ApiService {
   }
 
   // --- SAVE MESSAGE TO DB ---
-  static Future<void> saveChatMessage(
+  static Future<int?> saveChatMessage(
     int userId,
-    String content,
+    String text,
     String sender, {
-    List<dynamic>? recipes,
+    List? recipes,
   }) async {
     try {
-      await _dio.post(
+      final response = await _dio.post(
         '$baseUrl/chat/save/$userId',
-        data: {'content': content, 'sender': sender, 'recipes': recipes ?? []},
+        data: {"content": text, "sender": sender, "recipes": recipes ?? []},
       );
+      // Return the ID that PostgreSQL just generated!
+      return response.data['id'];
     } catch (e) {
-      print("❌ Error saving message: $e");
+      print("Error saving message: $e");
+      return null;
+    }
+  }
+
+  static Future<void> updateChatMessage(
+    int messageId,
+    String content, {
+    List? recipes,
+  }) async {
+    try {
+      // Uses the new PUT /update/{id} endpoint
+      final response = await _dio.put(
+        '$baseUrl/chat/update/$messageId',
+        data: {"content": content, "recipes": recipes ?? []},
+      );
+      print("✅ In-place update successful for ID: $messageId");
+    } catch (e) {
+      print("🚨 Error updating message $messageId: $e");
+    }
+  }
+
+  static Future<bool> deleteChatHistory(int userId) async {
+    try {
+      final response = await _dio.delete('$baseUrl/chat/history/$userId');
+      return response.statusCode == 200;
+    } catch (e) {
+      print("🚨 Error deleting history: $e");
+      return false;
     }
   }
 }
