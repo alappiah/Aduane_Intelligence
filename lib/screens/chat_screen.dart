@@ -75,12 +75,21 @@ class _ChatScreenState extends State<ChatScreen> {
     if (_editingUserMsgId != null && _editingUiIndex != null) {
       // --- 🟢 IN-PLACE UPDATE MODE ---
       final uIdx = _editingUiIndex!;
-      final aIdx = uIdx + 1;
+      int aIdx = uIdx + 1; // Changed from 'final' to 'int'
 
       setState(() {
         _messages[uIdx]['text'] = text; // Update user bubble
-        _messages[aIdx]['text'] = ""; // Clear AI bubble for re-streaming
-        _messages[aIdx]['recipes'] = [];
+
+        // 🌟 THE FIX: Safely check if the AI bubble exists!
+        if (aIdx < _messages.length && _messages[aIdx]['isMe'] == false) {
+          // The AI bubble exists, clear it for re-streaming
+          _messages[aIdx]['text'] = "";
+          _messages[aIdx]['recipes'] = [];
+        } else {
+          // There is no AI bubble here! Insert a brand new placeholder
+          _messages.insert(aIdx, {"isMe": false, "text": "", "recipes": []});
+        }
+
         _isLoading = true;
       });
 
@@ -135,6 +144,42 @@ class _ChatScreenState extends State<ChatScreen> {
     _cancelToken = CancelToken();
     setState(() => _isGenerating = true);
 
+    // 🌟 1. THE SAFETY LOCK: Prevents saving the same message twice
+    bool hasSaved = false;
+
+    // 🌟 2. THE HELPER: A single source of truth for saving to the DB
+    Future<void> finalizeAndSave() async {
+      if (hasSaved) return; // If we already saved it, stop.
+      hasSaved = true;
+
+      final currentText = _messages[aiIndex]['text'];
+      final currentRecipes = _messages[aiIndex]['recipes'];
+
+      if (existingAiId != null) {
+        await ApiService.updateChatMessage(
+          existingAiId,
+          currentText,
+          recipes: currentRecipes,
+        );
+      } else if (_messages[aiIndex]['id'] != null) {
+        await ApiService.updateChatMessage(
+          _messages[aiIndex]['id'],
+          currentText,
+          recipes: currentRecipes,
+        );
+      } else {
+        int? newAiId = await ApiService.saveChatMessage(
+          widget.user['id'],
+          currentText,
+          'ai',
+          recipes: currentRecipes,
+        );
+        if (newAiId != null && mounted) {
+          setState(() => _messages[aiIndex]['id'] = newAiId);
+        }
+      }
+    }
+
     try {
       final response = await _dio.post<ResponseBody>(
         '/chat/message',
@@ -173,55 +218,78 @@ class _ChatScreenState extends State<ChatScreen> {
                     );
                     _scrollToBottom();
                   } else if (packet['type'] == 'done') {
+                    // 🟢 SCENARIO A: The AI finished normally!
                     setState(() {
                       _isLoading = false;
                       _isGenerating = false;
                     });
-
-                    if (existingAiId != null) {
-                      // In-place Update Mode
-                      await ApiService.updateChatMessage(
-                        existingAiId,
-                        _messages[aiIndex]['text'],
-                        recipes: _messages[aiIndex]['recipes'],
-                      );
-                    } else {
-                      // Initial Save Mode
-                      int? newAiId = await ApiService.saveChatMessage(
-                        widget.user['id'],
-                        _messages[aiIndex]['text'],
-                        'ai',
-                        recipes: _messages[aiIndex]['recipes'],
-                      );
-                      if (newAiId != null) {
-                        setState(() => _messages[aiIndex]['id'] = newAiId);
-                      }
-                    }
+                    await finalizeAndSave(); // Save!
                   }
                 } catch (e) {
                   print("JSON Parsing error: $e");
                 }
               }
             },
+
+            // 🟢 SCENARIO B: The stream threw an error (or was canceled violently)
             onError: (error) {
               setState(() {
                 _isLoading = false;
                 _isGenerating = false;
+
+                if (_cancelToken?.isCancelled == true ||
+                    (error is DioException &&
+                        error.type == DioExceptionType.cancel)) {
+                  if (!_messages[aiIndex]['text'].endsWith(
+                    "You stopped this response",
+                  )) {
+                    _messages[aiIndex]['text'] +=
+                        " ... You stopped this response";
+                  }
+                } else {
+                  _messages[aiIndex]['text'] += "\n\n[Connection Lost]";
+                }
               });
-              // Add stop sign logic here if needed
+              finalizeAndSave(); // Save!
             },
-            onDone:
-                () => setState(() {
-                  _isLoading = false;
-                  _isGenerating = false;
-                }),
+
+            // 🟢 SCENARIO C: The socket closed silently (usually happens when canceled)
+            onDone: () {
+              setState(() {
+                _isLoading = false;
+                _isGenerating = false;
+
+                // If it finished but the cancel token is active, we append the text
+                if (_cancelToken?.isCancelled == true) {
+                  if (!_messages[aiIndex]['text'].endsWith(
+                    "You stopped this response",
+                  )) {
+                    _messages[aiIndex]['text'] +=
+                        " ... You stopped this response";
+                  }
+                }
+              });
+              finalizeAndSave(); // Save!
+            },
           );
+
+      // 🟢 SCENARIO D: It crashed before it even connected to the server
     } catch (e) {
       print("Streaming Error: $e");
       setState(() {
         _isLoading = false;
         _isGenerating = false;
+        if (e is DioException && e.type == DioExceptionType.cancel) {
+          if (!_messages[aiIndex]['text'].endsWith(
+            "You stopped this response",
+          )) {
+            _messages[aiIndex]['text'] += " ... You stopped this response";
+          }
+        } else {
+          _messages[aiIndex]['text'] += "\n\n[Server Offline]";
+        }
       });
+      finalizeAndSave(); // Save!
     }
   }
 
@@ -478,20 +546,31 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             TextButton(
               onPressed: () async {
-                Navigator.pop(context); // Close the popup
+                // 🌟 1. CAPTURE THE MESSENGER BEFORE DOING ANYTHING ELSE
+                // This saves the tool we need while the context is still perfectly valid.
+                final messenger = ScaffoldMessenger.of(context);
+
+                // 2. Close the popup dialog
+                Navigator.pop(context);
+
+                // 3. Start loading on the main screen
+                if (!mounted) return;
                 setState(() => _isLoading = true);
 
-                // 1. Call the backend to wipe PostgreSQL
+                // 4. Call the backend to wipe PostgreSQL
                 bool success = await ApiService.deleteChatHistory(
                   widget.user['id'],
                 );
 
+                // 🌟 5. CRITICAL FIX: Check if the screen is still open after the await!
+                if (!mounted) return;
+
                 if (success) {
                   setState(() {
-                    // 2. Clear the local UI list
+                    // Clear the local UI list
                     _messages.clear();
 
-                    // 3. Re-insert the welcome message so the screen isn't empty
+                    // Re-insert the welcome message so the screen isn't empty
                     _messages.add({
                       "isMe": false,
                       "text":
@@ -500,8 +579,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     });
                   });
 
-                  // 🌟 4. SHOW THE SNACKBAR (Toast)
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  // 🌟 6. SHOW THE SNACKBAR SAFELY
+                  // We use the 'messenger' variable we captured in Step 1, completely bypassing the context error.
+                  messenger.showSnackBar(
                     const SnackBar(
                       content: Text("Chat history successfully deleted"),
                       backgroundColor: Colors.redAccent,
