@@ -307,6 +307,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final int lastUserIndex = _messages.lastIndexWhere((msg) => msg['isMe'] == true);
     return Scaffold(
       backgroundColor: const Color(0xFFE3EAEF),
       appBar: AppBar(
@@ -340,6 +341,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   isMe: msg['isMe'],
                   text: msg['text'],
                   recipes: msg['recipes'],
+                  isEditable: index == lastUserIndex,
                 );
               },
             ),
@@ -367,6 +369,7 @@ class _ChatScreenState extends State<ChatScreen> {
     required bool isMe,
     required String text,
     required List<dynamic> recipes,
+    required bool isEditable,
   }) {
     return Column(
       crossAxisAlignment:
@@ -392,35 +395,30 @@ class _ChatScreenState extends State<ChatScreen> {
             ],
 
             // --- 🟢 NEW: ADD THE EDIT BUTTON FOR USER MESSAGES ---
-            if (isMe)
+            if (isEditable)
               IconButton(
                 icon: const Icon(Icons.edit, size: 20, color: Colors.grey),
-                padding:
-                    EdgeInsets.zero, // Keeps it snug against the chat bubble
-                constraints:
-                    const BoxConstraints(), // Removes extra default padding
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
                 onPressed: () async {
                   if (_isGenerating) _cancelToken?.cancel();
 
                   setState(() {
-                    // 1. Store the IDs for the backend UPDATE
                     _editingUserMsgId = _messages[index]['id'];
                     _editingUiIndex = index;
 
-                    // Grab the AI's ID (the bubble immediately after the user's)
                     if (index + 1 < _messages.length &&
                         !_messages[index + 1]['isMe']) {
                       _editingAiMsgId = _messages[index + 1]['id'];
                     }
                   });
 
-                  // 2. Put text back into the controller for editing
                   _textController.text = text;
                   _focusNode.requestFocus();
                 },
               ),
 
-            if (isMe)
+            if (isEditable)
               const SizedBox(width: 8), // Small gap between pencil and bubble
             // ----------------------------------------------------
 

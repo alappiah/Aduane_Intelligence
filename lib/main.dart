@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
+import 'screens/forgot_password_screen.dart';
 // import 'screens/profile_setup_screen.dart';
 // import 'screens/home_screen.dart';
 // import 'screens/chat_screen.dart';
@@ -25,6 +26,7 @@ class MyApp extends StatelessWidget {
         routes: {
           '/': (context) => const LoginScreen(),
           '/register': (context) => RegisterScreen(),
+          '/forgot_password_screen': (context) => ForgotPasswordScreen()
           // '/profile_setup_screen' :  (context) => ProfileSetupScreen(),
           // '/home_screen' : (context) => HomeScreen(),
           // '/chat_screen' : (context) => ChatScreen(),
