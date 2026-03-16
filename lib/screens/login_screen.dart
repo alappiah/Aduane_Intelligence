@@ -151,7 +151,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                   TextButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/forgot_password_screen');
+                    },
                     child: const Text(
                       "Forgot Password",
                       style: TextStyle(color: Colors.grey, fontSize: 12),

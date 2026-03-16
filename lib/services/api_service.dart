@@ -3,7 +3,7 @@ import 'package:dio/dio.dart';
 class ApiService {
   // If using Android Emulator, 10.0.2.2 points to your laptop's localhost.
   // static const String baseUrl = 'http://192.168.100.79:8000';?\
-  static const String baseUrl = 'http://192.168.8.103:8000';
+  static const String baseUrl = 'http://10.255.185.8:8000';
   // static const String baseUrl = 'http://10.0.2.2:8000';
 
   //uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
@@ -136,6 +136,50 @@ class ApiService {
     } catch (e) {
       print("🚨 Error deleting history: $e");
       return false;
+    }
+  }
+
+  static Future<bool> requestPasswordReset(String email) async {
+    try {
+      // Dio automatically encodes the 'data' map to JSON!
+      final response = await _dio.post(
+        '$baseUrl/auth/forgot-password',
+        data: {'email': email},
+      );
+
+      return response.statusCode == 200;
+    } on DioException catch (e) {
+      print("Error requesting reset code: ${e.message}");
+      throw Exception('Failed to connect to the server.');
+    }
+  }
+
+  static Future<bool> resetPassword(
+    String email,
+    String resetCode,
+    String newPassword,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '$baseUrl/auth/reset-password',
+        data: {
+          'email': email,
+          'reset_code': resetCode,
+          'new_password': newPassword,
+        },
+      );
+
+      return response.statusCode == 200; // Success!
+    } on DioException catch (e) {
+      // 🌟 Dio throws an exception for 400/500 errors.
+      // We grab your FastAPI 'detail' message from the error response!
+      if (e.response != null && e.response?.data is Map) {
+        final errorDetail = e.response?.data['detail'];
+        throw Exception(errorDetail ?? 'Failed to reset password');
+      }
+
+      print("Error resetting password: ${e.message}");
+      throw Exception('Failed to communicate with server');
     }
   }
 }
