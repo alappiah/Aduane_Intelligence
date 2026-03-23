@@ -12,6 +12,11 @@ dependencies:
   dio: ^5.9.1
   http: ^1.6.0
   pinput: ^6.0.2
+  intl: ^0.20.2
+  fl_chart: ^1.2.0
+  google_fonts: ^8.0.2
+  percent_indicator: ^4.2.5
+  cupertino_icons: ^1.0.6
 
 dev_dependencies:
   flutter_test:
