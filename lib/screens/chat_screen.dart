@@ -481,11 +481,18 @@ class _ChatScreenState extends State<ChatScreen> {
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
       color: Colors.white,
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end, // Keeps the Send button at the bottom!
         children: [
           Expanded(
             child: TextField(
               controller: _textController,
               focusNode: _focusNode,
+              
+              // 🌟 THE MAGIC 3 LINES FOR AUTO-EXPANDING:
+              minLines: 1, // Starts as a normal 1-line box
+              maxLines: 5, // Grows taller up to 5 lines, then scrolls internally
+              keyboardType: TextInputType.multiline, 
+              
               decoration: InputDecoration(
                 hintText: "Ask (e.g., Spicy Lunch)...",
                 filled: true,
@@ -499,10 +506,11 @@ class _ChatScreenState extends State<ChatScreen> {
                   vertical: 14,
                 ),
               ),
-              onSubmitted: _sendMessage, // Allow Enter key to send
-            ),
-          ),
+            ), // <-- Properly closes TextField
+          ), // <-- Properly closes Expanded
+          
           const SizedBox(width: 8),
+          
           CircleAvatar(
             backgroundColor:
                 _isGenerating ? Colors.redAccent : const Color(0xFF41B9A1),

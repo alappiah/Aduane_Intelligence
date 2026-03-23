@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import ''
 import 'chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -12,6 +13,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  late final List<Widget> _pages = [
+    HomeScreen(user: widget.user),     // Index 0: Your Chat/Home screen
+    ProfileScreen(user: widget.user),   // Index 1: Your Profile screen
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -136,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
           //Profile tab
           Expanded(
             child: GestureDetector(
-              onTap: () => setState(() => _selectedIndex = 1),
+              onTap: ( ) => setState(() => _selectedIndex = 1),
               child: Container(
                 margin: const EdgeInsets.all(8),
                 decoration: BoxDecoration(

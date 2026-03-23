@@ -3,7 +3,7 @@ import 'package:dio/dio.dart';
 class ApiService {
   // If using Android Emulator, 10.0.2.2 points to your laptop's localhost.
   // static const String baseUrl = 'http://192.168.100.79:8000';?\
-  static const String baseUrl = 'http://10.255.185.8:8000';
+  static const String baseUrl = 'http://10.112.27.184:8000';
   // static const String baseUrl = 'http://10.0.2.2:8000';
 
   //uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
