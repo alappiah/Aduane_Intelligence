@@ -120,7 +120,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   _headerIcon(
                     Icons.edit_outlined,
-                    () => showEditProfileSheet(context),
+                    () => showEditProfileSheet(context, widget.user),
                   ),
                 ],
               ),
