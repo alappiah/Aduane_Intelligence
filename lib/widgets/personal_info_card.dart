@@ -38,7 +38,7 @@ class PersonalInfoCard extends StatelessWidget {
                 ),
               ),
               GestureDetector(
-                onTap: () => showEditProfileSheet(context),
+                onTap: () => showEditProfileSheet(context, user),
                 child: Text(
                   'Edit',
                   style: GoogleFonts.nunito(

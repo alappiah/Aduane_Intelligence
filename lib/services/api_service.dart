@@ -182,4 +182,45 @@ class ApiService {
       throw Exception('Failed to communicate with server');
     }
   }
+
+  // --- UPDATE USER PROFILE ---
+  static Future<bool> updateUserProfile({
+    required int userId,
+    required String firstName,
+    required String dateOfBirth,
+    required int height,
+    required double currentWeight,
+    required double goalWeight,
+    required int goalCalories,
+    required int goalSteps,
+    required String activityLevel,
+    required String healthCondition, // 🌟 1. Added the new parameter here!
+  }) async {
+    try {
+      final response = await _dio.put(
+        '$baseUrl/auth/users/update/$userId', // We will build this FastAPI route next!
+        data: {
+          'firstName': firstName,
+          'date_of_birth': dateOfBirth,
+          'height_cm': height,
+          'current_weight_kg': currentWeight,
+          'goal_weight_kg': goalWeight,
+          'goal_calories': goalCalories,
+          'goal_steps': goalSteps,
+          'activity_level': activityLevel,
+          'health_condition': healthCondition, // 🌟 2. Added to the payload here!
+        },
+      );
+
+      if (response.statusCode == 200) {
+        print("✅ Profile updated successfully in database!");
+        return true;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      print("❌ Error updating profile: $e");
+      return false;
+    }
+  }
 }

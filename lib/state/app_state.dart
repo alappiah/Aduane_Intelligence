@@ -44,15 +44,21 @@ class UserProfile {
   String currentWeight;
   String goalWeight;
   String activityLevel;
+  
+  // 🌟 The two new fields we added!
+  int goalCalories;
+  int goalSteps;
 
   UserProfile({
     this.name = 'Sarah Rivera',
     this.email = 'sarah.rivera@email.com',
     this.dateOfBirth = 'March 15, 1995',
-    this.height = '5\'6" (168 cm)',
-    this.currentWeight = '65.2 kg',
-    this.goalWeight = '60.0 kg',
+    this.height = '168',
+    this.currentWeight = '65',
+    this.goalWeight = '60',
     this.activityLevel = 'Moderately Active',
+    this.goalCalories = 2000, // Default value
+    this.goalSteps = 10000,   // Default value
   });
 }
 
