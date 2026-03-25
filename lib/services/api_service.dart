@@ -3,7 +3,7 @@ import 'package:dio/dio.dart';
 class ApiService {
   // If using Android Emulator, 10.0.2.2 points to your laptop's localhost.
   // static const String baseUrl = 'http://192.168.100.79:8000';?\
-  static const String baseUrl = 'http://192.168.100.55:8000';
+  static const String baseUrl = 'http://10.255.215.215:8000';
   // static const String baseUrl = 'http://10.0.2.2:8000';
 
   //uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
@@ -208,7 +208,8 @@ class ApiService {
           'goal_calories': goalCalories,
           'goal_steps': goalSteps,
           'activity_level': activityLevel,
-          'health_condition': healthCondition, // 🌟 2. Added to the payload here!
+          'health_condition':
+              healthCondition, // 🌟 2. Added to the payload here!
         },
       );
 
@@ -220,6 +221,129 @@ class ApiService {
       }
     } catch (e) {
       print("❌ Error updating profile: $e");
+      return false;
+    }
+  }
+
+  static Future<bool> logMeal({
+    required int userId,
+    required String name,
+    required String mealType,
+    required int calories,
+    required int carbs,
+    required int protein,
+    required int fats,
+    required int sodium,
+    required int sugar,
+    required String time,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '$baseUrl/auth/users/meals/log', // Must match your FastAPI route!
+        data: {
+          'user_id': userId,
+          'name': name,
+          'mealType': mealType,
+          'calories': calories,
+          'carbs': carbs,
+          'protein': protein,
+          'fats': fats,
+          'sodium': sodium,
+          'sugar': sugar,
+          'time': time,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        print("✅ Meal logged successfully to database!");
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print("❌ Error logging meal: $e");
+      return false;
+    }
+  }
+
+  static Future<bool> syncStepsToDatabase({
+    required int userId,
+    required int steps,
+  }) async {
+    try {
+      // Format today's date exactly how Postgres expects it: YYYY-MM-DD
+      final today = DateTime.now();
+      final dateString =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
+      final response = await _dio.post(
+        '$baseUrl/auth/users/steps/sync',
+        data: {'user_id': userId, 'date': dateString, 'steps': steps},
+      );
+
+      if (response.statusCode == 200) {
+        print("✅ Steps silently synced to database: $steps");
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print("❌ Error syncing steps: $e");
+      return false;
+    }
+  }
+
+  // ---------------------------------------------------------
+  // 🌟 2. MORNING DASHBOARD FETCH
+  // ---------------------------------------------------------
+  static Future<Map<String, dynamic>?> fetchTodayDashboard(int userId) async {
+    try {
+      final response = await _dio.get(
+        '$baseUrl/auth/users/$userId/dashboard/today',
+      );
+
+      if (response.statusCode == 200) {
+        print("✅ Dashboard data fetched successfully!");
+        // This returns the exact JSON package your Python backend put together
+        return response.data;
+      }
+      return null;
+    } catch (e) {
+      print("❌ Error fetching dashboard data: $e");
+      return null;
+    }
+  }
+
+  // ---------------------------------------------------------
+  // 🌟 3. LOG WORKOUT TO DATABASE
+  // ---------------------------------------------------------
+  static Future<bool> logWorkout({
+    required int userId,
+    required String name,
+    required String type,
+    required int durationMinutes,
+    required int caloriesBurned,
+    required String time,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '$baseUrl/auth/users/workouts/log',
+        data: {
+          'user_id': userId,
+          'name': name,
+          'type': type,
+          'durationMinutes': durationMinutes,
+          'caloriesBurned': caloriesBurned,
+          'time': time,
+        },
+      );
+
+      // 200 is OK, 201 is Created. Both mean success!
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print("✅ Workout successfully saved to the database!");
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print("❌ Error logging workout to server: $e");
       return false;
     }
   }

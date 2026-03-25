@@ -194,6 +194,23 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
       return;
     }
 
+    // 🌟 THE COMPLETE FIX: Overwrite EVERY field in the parent map!
+    // We split the name into first and last to match your database structure
+    final nameParts = _nameCtrl.text.trim().split(' ');
+    widget.user['firstName'] = nameParts.first;
+    widget.user['lastName'] =
+        nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+
+    widget.user['email'] = _emailCtrl.text.trim();
+    widget.user['health_condition'] = _selectedHealthCondition;
+    widget.user['activity_level'] = _activityLevel;
+    widget.user['height_cm'] = _heightCtrl.text.trim();
+    widget.user['current_weight_kg'] = _weightCtrl.text.trim();
+    widget.user['goal_weight_kg'] = _goalWeightCtrl.text.trim();
+    widget.user['goal_calories'] = updatedData["goalCalories"];
+    widget.user['goal_steps'] = updatedData["goalSteps"];
+
+    // Update the local AppState
     AppState().updateProfile(
       UserProfile(
         name: updatedData["name"] as String,
@@ -410,7 +427,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                         children: [
                           Expanded(
                             child: _field(
-                              'Daily Calories',
+                              'Goal Calories',
                               _goalCaloriesCtrl,
                               '2000',
                               isNumber: true,
@@ -419,7 +436,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: _field(
-                              'Daily Steps',
+                              'Goal Steps',
                               _goalStepsCtrl,
                               '10000',
                               isNumber: true,
