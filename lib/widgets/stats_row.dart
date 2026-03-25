@@ -4,21 +4,44 @@ import '../state/app_state.dart';
 import '../theme/app_colors.dart';
 import 'custom_card.dart';
 
-class StatsRow extends StatelessWidget {
+class StatsRow extends StatefulWidget {
   const StatsRow({super.key});
+
+  @override
+  State<StatsRow> createState() => _StatsRowState();
+}
+
+class _StatsRowState extends State<StatsRow> {
+  @override
+  void initState() {
+    super.initState();
+    // 🌟 Listen for step counts and newly logged meals/workouts!
+    AppState().addListener(_onStateChanged);
+  }
+
+  @override
+  void dispose() {
+    AppState().removeListener(_onStateChanged);
+    super.dispose();
+  }
+
+  void _onStateChanged() {
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = AppState();
+
     return Transform.translate(
       offset: const Offset(0, -20),
       child: CustomCard(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
         child: Row(
           children: [
             Expanded(
               child: _statItem(
-                '28',
+                '12', // Currently a hardcoded placeholder for your streak
                 'Days Active',
                 Icons.local_fire_department_rounded,
                 AppColors.orange,
@@ -28,9 +51,9 @@ class StatsRow extends StatelessWidget {
             _verticalDivider(),
             Expanded(
               child: _statItem(
-                '${state.workouts.length}',
-                'Workouts',
-                Icons.fitness_center_rounded,
+                '${state.dailySteps}', // 🌟 Live Pedometer Feed!
+                'Steps',
+                Icons.directions_walk_rounded,
                 AppColors.pink,
                 AppColors.pinkLight,
               ),
@@ -38,9 +61,9 @@ class StatsRow extends StatelessWidget {
             _verticalDivider(),
             Expanded(
               child: _statItem(
-                '${state.totalCaloriesBurned}',
-                'kCal Out',
-                Icons.trending_down_rounded,
+                '${state.totalCaloriesConsumed}', // 🌟 From Meal Logs
+                'Consumed',
+                Icons.restaurant_rounded,
                 AppColors.teal,
                 AppColors.tealLight,
               ),
@@ -48,9 +71,9 @@ class StatsRow extends StatelessWidget {
             _verticalDivider(),
             Expanded(
               child: _statItem(
-                '84%',
-                'Avg Goal',
-                Icons.track_changes_rounded,
+                '${state.totalCaloriesBurned}', // 🌟 From Workout Logs
+                'Burned',
+                Icons.whatshot_rounded,
                 AppColors.purple,
                 AppColors.purpleLight,
               ),
@@ -77,15 +100,23 @@ class StatsRow extends StatelessWidget {
         Text(
           v,
           style: GoogleFonts.nunito(
-            fontSize: 17,
+            fontSize: 16, // slightly smaller to fit the numbers
             fontWeight: FontWeight.w800,
             color: AppColors.textDark,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         Text(
           l,
-          style: GoogleFonts.nunito(fontSize: 11, color: AppColors.textMedium),
+          style: GoogleFonts.nunito(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textMedium,
+          ),
           textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );

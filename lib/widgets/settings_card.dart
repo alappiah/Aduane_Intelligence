@@ -6,7 +6,9 @@ import '../widgets/log_meal_sheet.dart';
 import '../widgets/add_workout_sheet.dart';
 
 class SettingsCard extends StatelessWidget {
-  const SettingsCard({super.key});
+  final Map<String, dynamic> user; // 🌟 1. Define the user variable here
+
+  const SettingsCard({super.key, required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +32,7 @@ class SettingsCard extends StatelessWidget {
             iconBg: AppColors.orangeLight,
             label: 'Log Meal',
             onTap: () {
-              showLogMealSheet(context);
+              showLogMealSheet(context, user);
             },
           ),
           _divider(),

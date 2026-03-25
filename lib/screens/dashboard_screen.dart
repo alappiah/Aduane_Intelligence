@@ -7,7 +7,7 @@ import '../state/app_state.dart';
 import '../widgets/edit_profile_sheet.dart';
 import '../widgets/stats_row.dart';
 import '../widgets/personal_info_card.dart';
-import '../widgets/weekly_goals_card.dart';
+import '../widgets/daily_goals_card.dart';
 import '../widgets/settings_card.dart';
 import '../widgets/logout_button.dart';
 
@@ -31,6 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     // Listen to changes in AppState (meals, workouts, etc)
     AppState().addListener(_onStateChange);
+    AppState().loadDashboardData(widget.user['id']);
   }
 
   @override
@@ -56,9 +57,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   StatsRow(),
                   const SizedBox(height: 16),
-                  WeeklyGoalsCard(),
+                  DailyGoalsCard(),
                   const SizedBox(height: 16),
-                  SettingsCard(),
+                  SettingsCard(user: widget.user),
                   const SizedBox(height: 16),
                   PersonalInfoCard(user: widget.user),
                   const SizedBox(height: 16),
