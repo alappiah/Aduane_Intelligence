@@ -1,3 +1,4 @@
+import 'package:capstone_frontend/state/app_state.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../widgets/recipe_card.dart';
@@ -7,7 +8,12 @@ import 'dart:convert';
 class ChatScreen extends StatefulWidget {
   // Catch the user data passed from Login/Home
   final Map<String, dynamic> user;
-  const ChatScreen({super.key, required this.user});
+  final int todayCalories;
+  const ChatScreen({
+    super.key,
+    required this.user,
+    required this.todayCalories,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -27,11 +33,13 @@ class _ChatScreenState extends State<ChatScreen> {
   int? _editingUserMsgId;
   int? _editingAiMsgId;
   int? _editingUiIndex; // Which bubble on the screen are we overwriting?
+  int _currentCaloriesEatenToday = 0;
 
   @override
   void initState() {
     super.initState();
     _loadHistory(); // Load private history on startup
+    _fetchTodayCalories();
   }
 
   @override
@@ -136,6 +144,19 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Future<void> _fetchTodayCalories() async {
+    final dashboardData = await ApiService.fetchTodayDashboard(
+      widget.user['id'],
+    );
+
+    if (dashboardData != null && mounted) {
+      setState(() {
+        // NOTE: Change 'total_calories' to match the exact key your FastAPI dashboard returns!
+        _currentCaloriesEatenToday = dashboardData['total_calories'] ?? 0;
+      });
+    }
+  }
+
   Future<void> _startAiStream(
     String text,
     int aiIndex, {
@@ -181,11 +202,31 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     try {
+      // 1. Get the Goal
+      int userCalorieGoal = widget.user['goal_calories'] ?? 2000;
+
+      // 2. THE BULLETPROOF FETCH: Ask the backend for the real math!
+      int dynamicCaloriesEaten = 0;
+      final dashboardData = await ApiService.fetchTodayDashboard(
+        widget.user['id'],
+      );
+      if (dashboardData != null) {
+        dynamicCaloriesEaten = widget.todayCalories;
+      }
+
+      // 3. FORCE THE PRINT TO SHOW UP
+      debugPrint(
+        "📱 FLUTTER CHECK -> Goal: $userCalorieGoal | Eaten: $dynamicCaloriesEaten",
+      );
+
+      // 4. SEND TO AI
       final response = await _dio.post<ResponseBody>(
         '/chat/message',
         data: {
           "query": text,
           "health_condition": widget.user['health_condition'],
+          "current_calories": dynamicCaloriesEaten,
+          "calorie_goal": userCalorieGoal,
         },
         cancelToken: _cancelToken,
         options: Options(
@@ -307,7 +348,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final int lastUserIndex = _messages.lastIndexWhere((msg) => msg['isMe'] == true);
+    final int lastUserIndex = _messages.lastIndexWhere(
+      (msg) => msg['isMe'] == true,
+    );
     return Scaffold(
       backgroundColor: const Color(0xFFE3EAEF),
       appBar: AppBar(
@@ -441,7 +484,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             : const Radius.circular(12),
                   ),
                 ),
-                child: Text(
+                child: SelectableText(
                   text,
                   style: TextStyle(
                     color: isMe ? Colors.white : Colors.black87,
@@ -481,18 +524,20 @@ class _ChatScreenState extends State<ChatScreen> {
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
       color: Colors.white,
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end, // Keeps the Send button at the bottom!
+        crossAxisAlignment:
+            CrossAxisAlignment.end, // Keeps the Send button at the bottom!
         children: [
           Expanded(
             child: TextField(
               controller: _textController,
               focusNode: _focusNode,
-              
+
               // 🌟 THE MAGIC 3 LINES FOR AUTO-EXPANDING:
               minLines: 1, // Starts as a normal 1-line box
-              maxLines: 5, // Grows taller up to 5 lines, then scrolls internally
-              keyboardType: TextInputType.multiline, 
-              
+              maxLines:
+                  5, // Grows taller up to 5 lines, then scrolls internally
+              keyboardType: TextInputType.multiline,
+
               decoration: InputDecoration(
                 hintText: "Ask (e.g., Spicy Lunch)...",
                 filled: true,
@@ -508,9 +553,9 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ), // <-- Properly closes TextField
           ), // <-- Properly closes Expanded
-          
+
           const SizedBox(width: 8),
-          
+
           CircleAvatar(
             backgroundColor:
                 _isGenerating ? Colors.redAccent : const Color(0xFF41B9A1),
