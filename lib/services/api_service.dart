@@ -2,15 +2,16 @@ import 'package:dio/dio.dart';
 
 class ApiService {
   // If using Android Emulator, 10.0.2.2 points to your laptop's localhost.
-  // static const String baseUrl = 'http://192.168.100.79:8000';?\
-  static const String baseUrl = 'http://192.168.100.55:8000';
+  static const String baseUrl = 'http://10.255.225.182:8000';
   // static const String baseUrl = 'http://10.0.2.2:8000';
+    //uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-  //uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
   // Create a single Dio instance to use across your service
   static final Dio _dio = Dio();
 
-  // --- SIGNUP FUNCTION ---
+  // =========================================================
+  // 🔐 AUTHENTICATION ENDPOINTS
+  // =========================================================
   static Future<bool> signupUser({
     required String firstName,
     required String lastName,
@@ -29,13 +30,11 @@ class ApiService {
           'health_condition': healthCondition,
         },
       );
-
       if (response.statusCode == 200) {
         print("✅ User created successfully!");
         return true;
-      } else {
-        return false;
       }
+      return false;
     } on DioException catch (e) {
       if (e.response?.statusCode == 400) {
         print("❌ Email already exists: ${e.response?.data}");
@@ -49,25 +48,22 @@ class ApiService {
     }
   }
 
-  // --- LOGIN FUNCTION ---
   static Future<Map<String, dynamic>?> loginUser({
     required String email,
     required String password,
   }) async {
     try {
       final response = await _dio.post(
-        '$baseUrl/auth/login', // Update this to '$baseUrl/auth/login' if you are using the APIRouter prefix we discussed earlier!
+        '$baseUrl/auth/login',
         data: {'email': email, 'password': password},
       );
-
       if (response.statusCode == 200) {
         print(
           "✅ Login successful! Welcome back, ${response.data['firstName']}",
         );
-        return response.data; // <-- RETURN THE ACTUAL USER DATA MAP
-      } else {
-        return null; // Return null if it fails
+        return response.data;
       }
+      return null;
     } on DioException catch (e) {
       if (e.response?.statusCode == 403) {
         print("❌ Incorrect email or password.");
@@ -81,72 +77,12 @@ class ApiService {
     }
   }
 
-  // --- FETCH CHAT HISTORY ---
-  static Future<List<dynamic>> getChatHistory(int userId) async {
-    try {
-      final response = await _dio.get('$baseUrl/chat/history/$userId');
-      return response.data; // List of message objects
-    } catch (e) {
-      print("❌ Error fetching history: $e");
-      return [];
-    }
-  }
-
-  // --- SAVE MESSAGE TO DB ---
-  static Future<int?> saveChatMessage(
-    int userId,
-    String text,
-    String sender, {
-    List? recipes,
-  }) async {
-    try {
-      final response = await _dio.post(
-        '$baseUrl/chat/save/$userId',
-        data: {"content": text, "sender": sender, "recipes": recipes ?? []},
-      );
-      // Return the ID that PostgreSQL just generated!
-      return response.data['id'];
-    } catch (e) {
-      print("Error saving message: $e");
-      return null;
-    }
-  }
-
-  static Future<void> updateChatMessage(
-    int messageId,
-    String content, {
-    List? recipes,
-  }) async {
-    try {
-      // Uses the new PUT /update/{id} endpoint
-      final response = await _dio.put(
-        '$baseUrl/chat/update/$messageId',
-        data: {"content": content, "recipes": recipes ?? []},
-      );
-      print("✅ In-place update successful for ID: $messageId");
-    } catch (e) {
-      print("🚨 Error updating message $messageId: $e");
-    }
-  }
-
-  static Future<bool> deleteChatHistory(int userId) async {
-    try {
-      final response = await _dio.delete('$baseUrl/chat/history/$userId');
-      return response.statusCode == 200;
-    } catch (e) {
-      print("🚨 Error deleting history: $e");
-      return false;
-    }
-  }
-
   static Future<bool> requestPasswordReset(String email) async {
     try {
-      // Dio automatically encodes the 'data' map to JSON!
       final response = await _dio.post(
         '$baseUrl/auth/forgot-password',
         data: {'email': email},
       );
-
       return response.statusCode == 200;
     } on DioException catch (e) {
       print("Error requesting reset code: ${e.message}");
@@ -168,22 +104,37 @@ class ApiService {
           'new_password': newPassword,
         },
       );
-
-      return response.statusCode == 200; // Success!
+      return response.statusCode == 200;
     } on DioException catch (e) {
-      // 🌟 Dio throws an exception for 400/500 errors.
-      // We grab your FastAPI 'detail' message from the error response!
       if (e.response != null && e.response?.data is Map) {
         final errorDetail = e.response?.data['detail'];
         throw Exception(errorDetail ?? 'Failed to reset password');
       }
-
       print("Error resetting password: ${e.message}");
       throw Exception('Failed to communicate with server');
     }
   }
 
-  // --- UPDATE USER PROFILE ---
+  // =========================================================
+  // 👤 USER DATA & DASHBOARD ENDPOINTS
+  // =========================================================
+
+  // 🌟 NEW: FETCH USER PROFILE (Fixes the "Sarah Rivera" bug)
+  static Future<Map<String, dynamic>?> fetchUserProfile(int userId) async {
+    try {
+      final response = await _dio.get('$baseUrl/users/$userId/profile');
+
+      if (response.statusCode == 200) {
+        print("✅ User profile fetched successfully!");
+        return response.data;
+      }
+      return null;
+    } catch (e) {
+      print("❌ Error fetching user profile: $e");
+      return null;
+    }
+  }
+
   static Future<bool> updateUserProfile({
     required int userId,
     required String firstName,
@@ -194,11 +145,11 @@ class ApiService {
     required int goalCalories,
     required int goalSteps,
     required String activityLevel,
-    required String healthCondition, // 🌟 1. Added the new parameter here!
+    required String healthCondition,
   }) async {
     try {
       final response = await _dio.put(
-        '$baseUrl/auth/users/update/$userId', // We will build this FastAPI route next!
+        '$baseUrl/users/update/$userId',
         data: {
           'firstName': firstName,
           'date_of_birth': dateOfBirth,
@@ -208,20 +159,31 @@ class ApiService {
           'goal_calories': goalCalories,
           'goal_steps': goalSteps,
           'activity_level': activityLevel,
-          'health_condition':
-              healthCondition, // 🌟 2. Added to the payload here!
+          'health_condition': healthCondition,
         },
       );
-
       if (response.statusCode == 200) {
         print("✅ Profile updated successfully in database!");
         return true;
-      } else {
-        return false;
       }
+      return false;
     } catch (e) {
       print("❌ Error updating profile: $e");
       return false;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> fetchTodayDashboard(int userId) async {
+    try {
+      final response = await _dio.get('$baseUrl/users/$userId/dashboard/today');
+      if (response.statusCode == 200) {
+        print("✅ Dashboard data fetched successfully!");
+        return response.data;
+      }
+      return null;
+    } catch (e) {
+      print("❌ Error fetching dashboard data: $e");
+      return null;
     }
   }
 
@@ -239,7 +201,7 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.post(
-        '$baseUrl/auth/users/meals/log', // Must match your FastAPI route!
+        '$baseUrl/users/meals/log',
         data: {
           'user_id': userId,
           'name': name,
@@ -253,7 +215,6 @@ class ApiService {
           'time': time,
         },
       );
-
       if (response.statusCode == 200) {
         print("✅ Meal logged successfully to database!");
         return true;
@@ -265,21 +226,49 @@ class ApiService {
     }
   }
 
+  static Future<bool> logWorkout({
+    required int userId,
+    required String name,
+    required String type,
+    required int durationMinutes,
+    required int caloriesBurned,
+    required String time,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '$baseUrl/users/workouts/log',
+        data: {
+          'user_id': userId,
+          'name': name,
+          'type': type,
+          'durationMinutes': durationMinutes,
+          'caloriesBurned': caloriesBurned,
+          'time': time,
+        },
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print("✅ Workout successfully saved to the database!");
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print("❌ Error logging workout to server: $e");
+      return false;
+    }
+  }
+
   static Future<bool> syncStepsToDatabase({
     required int userId,
     required int steps,
   }) async {
     try {
-      // Format today's date exactly how Postgres expects it: YYYY-MM-DD
       final today = DateTime.now();
       final dateString =
           '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-
       final response = await _dio.post(
-        '$baseUrl/auth/users/steps/sync',
+        '$baseUrl/users/steps/sync',
         data: {'user_id': userId, 'date': dateString, 'steps': steps},
       );
-
       if (response.statusCode == 200) {
         print("✅ Steps silently synced to database: $steps");
         return true;
@@ -291,59 +280,59 @@ class ApiService {
     }
   }
 
-  // ---------------------------------------------------------
-  // 🌟 2. MORNING DASHBOARD FETCH
-  // ---------------------------------------------------------
-  static Future<Map<String, dynamic>?> fetchTodayDashboard(int userId) async {
+  // =========================================================
+  // 💬 CHAT & AI ENDPOINTS
+  // =========================================================
+  static Future<List<dynamic>> getChatHistory(int userId) async {
     try {
-      final response = await _dio.get(
-        '$baseUrl/auth/users/$userId/dashboard/today',
-      );
-
-      if (response.statusCode == 200) {
-        print("✅ Dashboard data fetched successfully!");
-        // This returns the exact JSON package your Python backend put together
-        return response.data;
-      }
-      return null;
+      final response = await _dio.get('$baseUrl/chat/history/$userId');
+      return response.data;
     } catch (e) {
-      print("❌ Error fetching dashboard data: $e");
+      print("❌ Error fetching history: $e");
+      return [];
+    }
+  }
+
+  static Future<int?> saveChatMessage(
+    int userId,
+    String text,
+    String sender, {
+    List? recipes,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '$baseUrl/chat/save/$userId',
+        data: {"content": text, "sender": sender, "recipes": recipes ?? []},
+      );
+      return response.data['id'];
+    } catch (e) {
+      print("Error saving message: $e");
       return null;
     }
   }
 
-  // ---------------------------------------------------------
-  // 🌟 3. LOG WORKOUT TO DATABASE
-  // ---------------------------------------------------------
-  static Future<bool> logWorkout({
-    required int userId,
-    required String name,
-    required String type,
-    required int durationMinutes,
-    required int caloriesBurned,
-    required String time,
+  static Future<void> updateChatMessage(
+    int messageId,
+    String content, {
+    List? recipes,
   }) async {
     try {
-      final response = await _dio.post(
-        '$baseUrl/auth/users/workouts/log',
-        data: {
-          'user_id': userId,
-          'name': name,
-          'type': type,
-          'durationMinutes': durationMinutes,
-          'caloriesBurned': caloriesBurned,
-          'time': time,
-        },
+      await _dio.put(
+        '$baseUrl/chat/update/$messageId',
+        data: {"content": content, "recipes": recipes ?? []},
       );
-
-      // 200 is OK, 201 is Created. Both mean success!
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        print("✅ Workout successfully saved to the database!");
-        return true;
-      }
-      return false;
+      print("✅ In-place update successful for ID: $messageId");
     } catch (e) {
-      print("❌ Error logging workout to server: $e");
+      print("🚨 Error updating message $messageId: $e");
+    }
+  }
+
+  static Future<bool> deleteChatHistory(int userId) async {
+    try {
+      final response = await _dio.delete('$baseUrl/chat/history/$userId');
+      return response.statusCode == 200;
+    } catch (e) {
+      print("🚨 Error deleting history: $e");
       return false;
     }
   }

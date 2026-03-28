@@ -41,7 +41,7 @@ class _StatsRowState extends State<StatsRow> {
           children: [
             Expanded(
               child: _statItem(
-                '12', // Currently a hardcoded placeholder for your streak
+                '${state.daysActive}', // Currently a hardcoded placeholder for your streak
                 'Days Active',
                 Icons.local_fire_department_rounded,
                 AppColors.orange,

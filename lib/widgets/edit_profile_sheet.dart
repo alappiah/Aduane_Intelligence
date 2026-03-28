@@ -85,12 +85,12 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
     _weightCtrl = TextEditingController(
       text:
           widget.user['current_weight_kg']?.toString() ??
-          p.currentWeight.replaceAll(RegExp(r'[^0-9]'), ''),
+          p.currentWeight.replaceAll(RegExp(r'[^0-9.]'), ''),
     );
     _goalWeightCtrl = TextEditingController(
       text:
           widget.user['goal_weight_kg']?.toString() ??
-          p.goalWeight.replaceAll(RegExp(r'[^0-9]'), ''),
+          p.goalWeight.replaceAll(RegExp(r'[^0-9.]'), ''),
     );
 
     _goalCaloriesCtrl = TextEditingController(
@@ -554,9 +554,14 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
         const SizedBox(height: 5),
         TextFormField(
           controller: ctrl,
-          keyboardType: isNumber ? TextInputType.number : keyboardType,
+          keyboardType:
+              isNumber
+                  ? const TextInputType.numberWithOptions(decimal: true)
+                  : TextInputType.text,
           inputFormatters:
-              isNumber ? [FilteringTextInputFormatter.digitsOnly] : null,
+              isNumber
+                  ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))]
+                  : null,
           validator: validator,
           readOnly: readOnly,
           onTap: onTap,

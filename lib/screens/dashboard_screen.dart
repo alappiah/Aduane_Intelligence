@@ -31,6 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     // Listen to changes in AppState (meals, workouts, etc)
     AppState().addListener(_onStateChange);
+    AppState().loadUserProfile(widget.user['id']);
     AppState().loadDashboardData(widget.user['id']);
   }
 

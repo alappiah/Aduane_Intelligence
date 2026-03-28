@@ -85,6 +85,7 @@ class AppState extends ChangeNotifier {
   // 🌟 APP STATE & HARDWARE TRACKING
   int? currentUserId; // Added so the pedometer knows who is walking
   int dailySteps = 0;
+  int daysActive = 0;
   int _pedometerBaseline = 0; // 🌟 The Midnight Math baseline
   bool _isBaselineSet = false; // 🌟 Tracks if we've done the math yet today
 
@@ -109,6 +110,39 @@ class AppState extends ChangeNotifier {
   int get totalSugar => meals.fold(0, (sum, m) => sum + m.sugar);
 
   // ---------------------------------------------------------
+  // 🌟 THE PROFILE LOADER
+  // ---------------------------------------------------------
+  Future<void> loadUserProfile(int userId) async {
+    currentUserId = userId; // Save this just in case!
+    final data = await ApiService.fetchUserProfile(userId);
+
+    if (data != null) {
+      // Combine first and last name safely
+      String firstName = data['firstName'] ?? '';
+      String lastName = data['lastName'] ?? '';
+      String fullName = [
+        firstName,
+        lastName,
+      ].where((e) => e.isNotEmpty).join(' ');
+
+      // Overwrite the hardcoded profile with the real database data!
+      profile = UserProfile(
+        name: fullName.isNotEmpty ? fullName : 'Unknown User',
+        email: data['email'] ?? '',
+        dateOfBirth: data['dateOfBirth'] ?? '',
+        height: '${data['height_cm'] ?? 0}',
+        currentWeight: '${data['current_weight_kg'] ?? 0}',
+        goalWeight: '${data['goal_weight_kg'] ?? 0}',
+        activityLevel: data['activity_level'] ?? 'Moderately Active',
+        goalCalories: data['goal_calories'] ?? 2000,
+        goalSteps: data['goal_steps'] ?? 10000,
+      );
+
+      notifyListeners(); // 🌟 Tell the UI to update with the real name!
+    }
+  }
+
+  // ---------------------------------------------------------
   // 🌟 THE DASHBOARD LOADER
   // ---------------------------------------------------------
   Future<void> loadDashboardData(int userId) async {
@@ -117,6 +151,7 @@ class AppState extends ChangeNotifier {
 
     if (data != null) {
       dailySteps = data['steps'] ?? 0;
+      daysActive = data['daysActive'] ?? 0;
       _isBaselineSet = false;
 
       // Load Meals
