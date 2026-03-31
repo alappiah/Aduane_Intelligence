@@ -11,7 +11,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool isLogin = true; // State to toggle between login and register
-  bool rememberMe = false;
+  // bool rememberMe = false;
 
   // Controllers to grab the typed email and password
   final TextEditingController _emailController = TextEditingController();
@@ -141,14 +141,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
-                    children: [
-                      Checkbox(
-                        value: rememberMe,
-                        onChanged: (val) => setState(() => rememberMe = val!),
-                        activeColor: const Color(0xFF41B9A1),
-                      ),
-                      const Text("Remember me", style: TextStyle(fontSize: 12)),
-                    ],
+                    // children: [
+                    //   Checkbox(
+                    //     value: rememberMe,
+                    //     onChanged: (val) => setState(() => rememberMe = val!),
+                    //     activeColor: const Color(0xFF41B9A1),
+                    //   ),
+                    //   const Text("Remember me", style: TextStyle(fontSize: 12)),
+                    // ],
                   ),
                   TextButton(
                     onPressed: () {

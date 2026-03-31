@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import 'custom_card.dart';
 import '../widgets/log_meal_sheet.dart';
 import '../widgets/add_workout_sheet.dart';
+import '../widgets/change_password_sheet.dart';
 
 class SettingsCard extends StatelessWidget {
   final Map<String, dynamic> user; // 🌟 1. Define the user variable here
@@ -44,6 +45,18 @@ class SettingsCard extends StatelessWidget {
             label: 'Add Workout',
             onTap: () {
               showAddWorkoutSheet(context);
+            },
+          ),
+
+          _divider(),
+
+          _settingsNavRow(
+            icon: Icons.lock_reset_rounded,
+            iconColor: AppColors.orange, // Fixed the color error
+            iconBg: AppColors.orangeLight, // Fixed the color error
+            label: 'Change Password',
+            onTap: () {
+              showChangePasswordSheet(context, user); // Calls the new sheet
             },
           ),
         ],

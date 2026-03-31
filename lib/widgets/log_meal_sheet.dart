@@ -55,7 +55,7 @@ class _LogMealSheetState extends State<_LogMealSheet> {
   // 🌟 4. Make _submit async so we can await the API call!
   void _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     final now = TimeOfDay.now();
     final hour = now.hourOfPeriod == 0 ? 12 : now.hourOfPeriod;
     final period = now.period == DayPeriod.am ? 'AM' : 'PM';
@@ -122,7 +122,9 @@ class _LogMealSheetState extends State<_LogMealSheet> {
           ),
           backgroundColor: AppColors.teal,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
     }
@@ -132,7 +134,9 @@ class _LogMealSheetState extends State<_LogMealSheet> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+        bottom:
+            MediaQuery.of(context).viewInsets.bottom +
+            MediaQuery.of(context).padding.bottom,
       ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),

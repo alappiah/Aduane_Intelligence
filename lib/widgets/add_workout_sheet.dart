@@ -204,7 +204,9 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+        bottom:
+            MediaQuery.of(context).viewInsets.bottom +
+            MediaQuery.of(context).padding.bottom,
       ),
       child: Container(
         decoration: const BoxDecoration(

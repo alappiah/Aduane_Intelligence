@@ -115,6 +115,30 @@ class ApiService {
     }
   }
 
+  static Future<bool> changePassword(
+    int userId,
+    String currentPassword,
+    String newPassword,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '/auth/change-password', // Note: we rely on your base URL setup
+        data: {
+          'user_id': userId,
+          'current_password': currentPassword,
+          'new_password': newPassword,
+        },
+      );
+      return response.statusCode == 200;
+    } on DioException catch (e) {
+      if (e.response != null && e.response?.data is Map) {
+        final errorDetail = e.response?.data['detail'];
+        throw Exception(errorDetail ?? 'Failed to update password');
+      }
+      throw Exception('Failed to communicate with server');
+    }
+  }
+
   // =========================================================
   // 👤 USER DATA & DASHBOARD ENDPOINTS
   // =========================================================
