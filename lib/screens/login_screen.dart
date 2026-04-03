@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'home_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import '../services/network_helper.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -32,6 +35,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // The function that checks credentials with the Python backend
   void _submitLogin() async {
+
+    bool hasInternet = await isConnectedToInternet();
+    if (!hasInternet) return;
+
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please fill in both fields")),
@@ -51,6 +58,11 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => isLoading = false);
 
     if (userData != null) {
+      final prefs = await SharedPreferences.getInstance();
+
+      // ✅ 2. Convert the userData Map into a JSON String and save it
+      String userDataString = jsonEncode(userData);
+      await prefs.setString('saved_user', userDataString);
       // If it's not null, login was successful!
       if (mounted) {
         Navigator.pushReplacement(

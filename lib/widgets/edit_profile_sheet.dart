@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../theme/app_colors.dart';
 import '../state/app_state.dart';
 import '../services/api_service.dart';
+import '../services/network_helper.dart';
 
 void showEditProfileSheet(BuildContext context, Map<String, dynamic> user) {
   showModalBottomSheet(
@@ -150,6 +151,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   }
 
   void _save() async {
+    bool hasInternet = await isConnectedToInternet();
+    if (!hasInternet) return;
     if (!_formKey.currentState!.validate()) return;
 
     final updatedData = {

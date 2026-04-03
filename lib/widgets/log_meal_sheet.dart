@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 import '../state/app_state.dart';
 import '../services/api_service.dart'; // 🌟 1. Import your ApiService
+import '../services/network_helper.dart'; // 🌟 1. Import your ApiService
 
 // 🌟 2. Update to accept the user payload
 void showLogMealSheet(BuildContext context, Map<String, dynamic> user) {
@@ -54,6 +55,8 @@ class _LogMealSheetState extends State<_LogMealSheet> {
 
   // 🌟 4. Make _submit async so we can await the API call!
   void _submit() async {
+    bool hasInternet = await isConnectedToInternet();
+    if (!hasInternet) return;
     if (!_formKey.currentState!.validate()) return;
 
     final now = TimeOfDay.now();

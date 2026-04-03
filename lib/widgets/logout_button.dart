@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // 🌟 Added for clearing storage
+
 import '../theme/app_colors.dart';
-// 🌟 Make sure to import your LoginScreen here!
-import '../screens/login_screen.dart'; 
+import '../screens/login_screen.dart';
+import '../services/api_service.dart'; // 🌟 Added to sync steps
+import '../state/app_state.dart'; // 🌟 Added to get and reset steps
 
 class LogoutButton extends StatelessWidget {
   const LogoutButton({super.key});
@@ -54,7 +57,7 @@ class LogoutButton extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(32),
             child: Column(
-              mainAxisSize: MainAxisSize.min, 
+              mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Icon
@@ -65,7 +68,11 @@ class LogoutButton extends StatelessWidget {
                     color: AppColors.pinkLight,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.logout_rounded, color: AppColors.pink, size: 40),
+                  child: const Icon(
+                    Icons.logout_rounded,
+                    color: AppColors.pink,
+                    size: 40,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 Text(
@@ -87,66 +94,105 @@ class LogoutButton extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
-                
+
                 // Confirm logout
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: () {
-                      // 1. Close the dialog
-                      Navigator.pop(dialogContext); 
-                      
-                      // 2. Show the confirmation snackbar
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'You have been logged out.',
-                            style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
-                          ),
-                          backgroundColor: AppColors.teal,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      );
+                    // 🌟 1. MADE THIS ONPRESSED ASYNC
+                    onPressed: () async {
+                      // 2. Close the dialog immediately so it feels fast
+                      Navigator.pop(dialogContext);
 
-                      // 3. ACTUALLY LOG OUT: Route to LoginScreen and clear history
-                      // Uncomment this once your LoginScreen is imported!
-                      
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                        (route) => false,
-                      );
-                      
+                      // 🌟 3. GRAB DATA & SYNC TO DATABASE
+                      final appState = AppState();
+                      final currentSteps = appState.dailySteps;
+                      // Note: Adjust 'id' if your profile object uses a different variable name for the user ID (like userId)
+                      final userId = appState.currentUserId;
+
+                      if (userId != null) {
+                        await ApiService.syncStepsToDatabase(
+                          userId: userId,
+                          steps: currentSteps,
+                        );
+                      }
+
+                      // 🌟 4. CLEAR LOCAL HARD DRIVE (Fixes auto-login bug)
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.remove('saved_user');
+
+                      // 🌟 5. RESET LOCAL STATE
+                      appState.dailySteps = 0;
+                      // If you have a method to clear the whole profile, call it here!
+
+                      // 6. SHOW SNACKBAR & NAVIGATE (Must check mounted after using await)
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'You have been logged out.',
+                              style: GoogleFonts.nunito(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            backgroundColor: AppColors.teal,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        );
+
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
+                          (route) => false,
+                        );
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.pink,
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
                     child: Text(
                       'Yes, Log Out',
-                      style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w700),
+                      style: GoogleFonts.nunito(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(height: 14),
-                
+
                 // Cancel
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: OutlinedButton(
-                    onPressed: () => Navigator.pop(dialogContext), 
+                    onPressed: () => Navigator.pop(dialogContext),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.textMedium,
-                      side: const BorderSide(color: AppColors.divider, width: 1.5),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      side: const BorderSide(
+                        color: AppColors.divider,
+                        width: 1.5,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
                     child: Text(
                       'Cancel',
-                      style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w700),
+                      style: GoogleFonts.nunito(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),

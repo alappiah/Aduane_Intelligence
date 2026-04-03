@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart'; // Make sure this path matches where you put api_service.dart
+import '../services/network_helper.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   // 1. ADDED: Variables to catch the data passed from RegisterScreen
@@ -33,6 +34,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   // 4. ADDED: The function that actually talks to your backend
   void _submitRegistration() async {
+    bool hasInternet = await isConnectedToInternet();
+    if (!hasInternet) return;
+
     // Safety check: Make sure they didn't leave anything blank
     if (_firstNameController.text.isEmpty || _lastNameController.text.isEmpty || selectedCondition == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please fill all fields")));

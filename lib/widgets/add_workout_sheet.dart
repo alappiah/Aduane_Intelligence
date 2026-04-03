@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 import '../state/app_state.dart';
 import '../services/api_service.dart';
+import '../services/network_helper.dart';
 
 void showAddWorkoutSheet(BuildContext context) {
   showModalBottomSheet(
@@ -121,6 +122,9 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
   }
 
   void _submit() async {
+
+    bool hasInternet = await isConnectedToInternet();
+    if (!hasInternet) return;
     // 🌟 Added async here!
     if (!_formKey.currentState!.validate()) return;
 
