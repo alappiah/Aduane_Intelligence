@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../services/api_service.dart'; // 🌟 Make sure this path matches your project!
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
+import '../services/network_helper.dart';
+import 'dart:async';
 
 class MealEntry {
   final String name;
@@ -70,9 +73,13 @@ class UserProfile {
 class AppState extends ChangeNotifier {
   // Singleton
   static final AppState _instance = AppState._internal();
-  factory AppState() {
-    return _instance;
-  }
+  factory AppState() => _instance;
+
+  StreamSubscription<StepCount>? _stepCountSubscription;
+  StreamSubscription<PedestrianStatus>? _pedestrianStatusSubscription;
+
+  // ✅ Guard so _initPedometer can never run twice
+  bool _pedometerInitialized = false;
 
   AppState._internal() {
     _initPedometer();
@@ -82,21 +89,15 @@ class AppState extends ChangeNotifier {
   UserProfile profile = UserProfile();
   bool notificationsEnabled = true;
 
-  // 🌟 APP STATE & HARDWARE TRACKING
-  int? currentUserId; // Added so the pedometer knows who is walking
+  // App State & Hardware Tracking
+  int? currentUserId;
   int dailySteps = 0;
+  int _lastSyncedSteps = 0; // 🌟 NEW: Tracker for threshold syncing
   int daysActive = 0;
-  int _pedometerBaseline = 0; // 🌟 The Midnight Math baseline
-  bool _isBaselineSet = false; // 🌟 Tracks if we've done the math yet today
-
   String stepStatus = '?';
-  late Stream<StepCount> _stepCountStream;
-  late Stream<PedestrianStatus> _pedestrianStatusStream;
 
-  // Meals - Now starts empty because we load it from the database!
+  // Meals & Workouts
   final List<MealEntry> meals = [];
-
-  // Workouts
   final List<WorkoutEntry> workouts = [];
 
   // Computed Macros
@@ -110,14 +111,13 @@ class AppState extends ChangeNotifier {
   int get totalSugar => meals.fold(0, (sum, m) => sum + m.sugar);
 
   // ---------------------------------------------------------
-  // 🌟 THE PROFILE LOADER
+  // Profile Loader
   // ---------------------------------------------------------
   Future<void> loadUserProfile(int userId) async {
-    currentUserId = userId; // Save this just in case!
+    currentUserId = userId;
     final data = await ApiService.fetchUserProfile(userId);
 
     if (data != null) {
-      // Combine first and last name safely
       String firstName = data['firstName'] ?? '';
       String lastName = data['lastName'] ?? '';
       String fullName = [
@@ -125,7 +125,6 @@ class AppState extends ChangeNotifier {
         lastName,
       ].where((e) => e.isNotEmpty).join(' ');
 
-      // Overwrite the hardcoded profile with the real database data!
       profile = UserProfile(
         name: fullName.isNotEmpty ? fullName : 'Unknown User',
         email: data['email'] ?? '',
@@ -138,21 +137,42 @@ class AppState extends ChangeNotifier {
         goalSteps: data['goal_steps'] ?? 10000,
       );
 
-      notifyListeners(); // 🌟 Tell the UI to update with the real name!
+      notifyListeners();
     }
   }
 
   // ---------------------------------------------------------
-  // 🌟 THE DASHBOARD LOADER
+  // Dashboard Loader
   // ---------------------------------------------------------
   Future<void> loadDashboardData(int userId) async {
+    bool hasInternet = await isConnectedToInternet();
+    if (!hasInternet) return;
+
     currentUserId = userId;
     final data = await ApiService.fetchTodayDashboard(userId);
 
     if (data != null) {
-      dailySteps = data['steps'] ?? 0;
+      final int dbSteps = data['steps'] ?? 0;
       daysActive = data['daysActive'] ?? 0;
-      _isBaselineSet = false;
+
+      // ✅ If the cloud has MORE steps than what we have locally
+      // (e.g. after reinstall), inherit the cloud value and update
+      // SharedPreferences so the pedometer math stays correct.
+      if (dbSteps > dailySteps) {
+        final prefs = await SharedPreferences.getInstance();
+        final int currentAccumulated = prefs.getInt('ped_accumulated') ?? 0;
+
+        if (dbSteps > currentAccumulated) {
+          await prefs.setInt('ped_accumulated', dbSteps);
+          // Force the baseline to recalculate on the next pedometer tick
+          await prefs.remove('ped_baseline');
+        }
+
+        dailySteps = dbSteps;
+        _lastSyncedSteps =
+            dbSteps; // 🌟 NEW: Update sync tracker when loading from cloud
+        notifyListeners();
+      }
 
       // Load Meals
       meals.clear();
@@ -174,7 +194,7 @@ class AppState extends ChangeNotifier {
         }
       }
 
-      // 🌟 NEW: Load Workouts
+      // Load Workouts
       workouts.clear();
       if (data['workouts'] != null) {
         for (var w in data['workouts']) {
@@ -195,45 +215,87 @@ class AppState extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------
-  // 🌟 THE PEDOMETER LOGIC
+  // Pedometer Logic
   // ---------------------------------------------------------
   Future<void> _initPedometer() async {
+    // ✅ Hard guard — if already running, do nothing
+    if (_pedometerInitialized) {
+      print("⚠️ Pedometer already running, skipping re-init.");
+      return;
+    }
+
     PermissionStatus status = await Permission.activityRecognition.request();
+    print("🔑 Activity Recognition Permission: $status");
 
     if (status.isGranted) {
-      _pedestrianStatusStream = Pedometer.pedestrianStatusStream;
-      _stepCountStream = Pedometer.stepCountStream;
+      _pedometerInitialized = true;
 
-      _pedestrianStatusStream.listen((PedestrianStatus event) {
-        stepStatus = event.status;
-        notifyListeners();
-      }, onError: (error) => print("Pedestrian Status Error: $error"));
+      _pedestrianStatusSubscription = Pedometer.pedestrianStatusStream.listen(
+        (PedestrianStatus event) {
+          stepStatus = event.status;
+          notifyListeners();
+        },
+        onError: (error) => print("Pedestrian Status Error: $error"),
+        cancelOnError: false,
+      );
 
-      _stepCountStream.listen((StepCount event) {
-        int hardwareSteps = event.steps;
+      _stepCountSubscription = Pedometer.stepCountStream.listen(
+        (StepCount event) async {
+          final int hardwareSteps = event.steps;
+          print("👟 Raw hardware steps: $hardwareSteps");
 
-        // 🌟 THE MIDNIGHT MATH 🌟
-        if (!_isBaselineSet) {
-          // Calculate difference between phone's total and today's database total
-          _pedometerBaseline = hardwareSteps - dailySteps;
-          _isBaselineSet = true;
-        }
-
-        // Live update the steps
-        dailySteps = hardwareSteps - _pedometerBaseline;
-        notifyListeners();
-
-        // 🌟 SILENT AUTO-SYNC 🌟
-        // Ping the database every 50 steps so we don't lose progress
-        if (currentUserId != null && dailySteps > 0 && dailySteps % 50 == 0) {
-          ApiService.syncStepsToDatabase(
-            userId: currentUserId!,
-            steps: dailySteps,
+          final prefs = await SharedPreferences.getInstance();
+          final String today = DateTime.now().toIso8601String().substring(
+            0,
+            10,
           );
-        }
-      }, onError: (error) => print("Step Count Error: $error"));
+
+          final String? savedDate = prefs.getString('ped_date');
+          int savedBaseline = prefs.getInt('ped_baseline') ?? hardwareSteps;
+          int accumulatedSteps = prefs.getInt('ped_accumulated') ?? 0;
+
+          // Midnight rollover — reset for new day
+          if (savedDate != today) {
+            print("🌙 New day detected, resetting pedometer baseline.");
+            savedBaseline = hardwareSteps;
+            accumulatedSteps = 0;
+            await prefs.setString('ped_date', today);
+            await prefs.setInt('ped_baseline', savedBaseline);
+            await prefs.setInt('ped_accumulated', accumulatedSteps);
+          }
+          // Phone reboot — hardware counter restarted from a lower number
+          else if (hardwareSteps < savedBaseline) {
+            print(
+              "⚠️ Pedometer reset detected, locking in $accumulatedSteps steps.",
+            );
+            accumulatedSteps = dailySteps;
+            savedBaseline = hardwareSteps;
+            await prefs.setInt('ped_baseline', savedBaseline);
+            await prefs.setInt('ped_accumulated', accumulatedSteps);
+          }
+
+          dailySteps = accumulatedSteps + (hardwareSteps - savedBaseline);
+          notifyListeners();
+
+          // 🌟 THE FIX: Silent background sync using the Threshold Method
+          if (currentUserId != null &&
+              dailySteps > 0 &&
+              (dailySteps - _lastSyncedSteps >= 50)) {
+            print(
+              "🔄 Threshold reached! Syncing $dailySteps steps to database...",
+            );
+            ApiService.syncStepsToDatabase(
+              userId: currentUserId!,
+              steps: dailySteps,
+            );
+            _lastSyncedSteps = dailySteps; // 🌟 Reset the tracker after syncing
+          }
+        },
+        onError: (error) => print("Step Count Error: $error"),
+        cancelOnError: false,
+      );
     } else {
-      print("Permission to access activity recognition was denied.");
+      print("❌ Permission to access activity recognition was denied.");
     }
   }
 
@@ -254,6 +316,22 @@ class AppState extends ChangeNotifier {
 
   void updateProfile(UserProfile updated) {
     profile = updated;
+    notifyListeners();
+  }
+
+  // ---------------------------------------------------------
+  // Logout Wiper
+  // ---------------------------------------------------------
+  // ✅ DO NOT cancel the pedometer or call _initPedometer here.
+  // The hardware stream survives logout/login — only the user data resets.
+  void resetState() {
+    currentUserId = null;
+    dailySteps = 0;
+    _lastSyncedSteps = 0; // 🌟 NEW: Wipe the tracker on logout
+    daysActive = 0;
+    meals.clear();
+    workouts.clear();
+    profile = UserProfile();
     notifyListeners();
   }
 }
