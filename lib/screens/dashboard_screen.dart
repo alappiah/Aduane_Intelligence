@@ -2,6 +2,7 @@ import 'package:capstone_frontend/widgets/custom_card.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_colors.dart';
 import '../state/app_state.dart';
 import '../widgets/edit_profile_sheet.dart';
@@ -10,6 +11,8 @@ import '../widgets/personal_info_card.dart';
 import '../widgets/daily_goals_card.dart';
 import '../widgets/settings_card.dart';
 import '../widgets/logout_button.dart';
+import '../widgets/activity_hub_card.dart';
+import '../widgets/weekly_progress_card.dart';
 
 class DashboardScreen extends StatefulWidget {
   final bool standalone;
@@ -29,10 +32,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    // Listen to changes in AppState (meals, workouts, etc)
-    AppState().addListener(_onStateChange);
-    AppState().loadUserProfile(widget.user['id']);
-    AppState().loadDashboardData(widget.user['id']);
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final userId = widget.user['id'];
+    if (userId != null) {
+      await AppState().loadUserProfile(userId);
+      await AppState().loadDashboardData(userId);
+      await AppState().loadWeeklyInsights();
+    }
   }
 
   @override
@@ -45,6 +54,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SingleChildScrollView(
@@ -60,11 +70,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(height: 16),
                   DailyGoalsCard(),
                   const SizedBox(height: 16),
+                  const WeeklyProgressCard(),
+                  const SizedBox(height: 16),
                   SettingsCard(user: widget.user),
                   const SizedBox(height: 16),
                   PersonalInfoCard(user: widget.user),
                   const SizedBox(height: 16),
-                  _buildAchievementsCard(),
+                  ActivityHubCard(),
                   const SizedBox(height: 16),
                   const LogoutButton(),
                   const SizedBox(
@@ -160,80 +172,80 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // ─── RECENT ACTIVITY (Dynamic from AppState) ────────────────────────────────
 
-  Widget _buildRecentActivity() {
-    final state = AppState();
-    if (state.meals.isEmpty && state.workouts.isEmpty)
-      return const SizedBox.shrink();
+  // Widget _buildRecentActivity() {
+  //   final state = AppState();
+  //   if (state.meals.isEmpty && state.workouts.isEmpty)
+  //     return const SizedBox.shrink();
 
-    return CustomCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Today\'s Activity',
-            style: GoogleFonts.nunito(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textDark,
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Show the most recent meal
-          if (state.meals.isNotEmpty)
-            _activityTile(
-              Icons.restaurant,
-              AppColors.teal,
-              state.meals.first.name,
-              state.meals.first.time,
-              '${state.meals.first.calories} cal',
-            ),
-          if (state.workouts.isNotEmpty) ...[
-            _divider(),
-            _activityTile(
-              Icons.flash_on,
-              AppColors.orange,
-              state.workouts.first.name,
-              state.workouts.first.time,
-              '${state.workouts.first.caloriesBurned} cal',
-            ),
-          ],
-        ],
-      ),
-    );
-  }
+  //   return CustomCard(
+  //     child: Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         Text(
+  //           'Today\'s Activity',
+  //           style: GoogleFonts.nunito(
+  //             fontSize: 18,
+  //             fontWeight: FontWeight.w800,
+  //             color: AppColors.textDark,
+  //           ),
+  //         ),
+  //         const SizedBox(height: 16),
+  //         // Show the most recent meal
+  //         if (state.meals.isNotEmpty)
+  //           _activityTile(
+  //             Icons.restaurant,
+  //             AppColors.teal,
+  //             state.meals.first.name,
+  //             state.meals.first.time,
+  //             '${state.meals.first.calories} cal',
+  //           ),
+  //         if (state.workouts.isNotEmpty) ...[
+  //           _divider(),
+  //           _activityTile(
+  //             Icons.flash_on,
+  //             AppColors.orange,
+  //             state.workouts.first.name,
+  //             state.workouts.first.time,
+  //             '${state.workouts.first.caloriesBurned} cal',
+  //           ),
+  //         ],
+  //       ],
+  //     ),
+  //   );
+  // }
 
   // ─── SUB-WIDGETS & HELPERS ──────────────────────────────────────────────────
 
-  Widget _activityTile(
-    IconData icon,
-    Color color,
-    String title,
-    String time,
-    String value,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              title,
-              style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
-            ),
-          ),
-          Text(
-            value,
-            style: GoogleFonts.nunito(
-              fontWeight: FontWeight.w700,
-              color: AppColors.textDark,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Widget _activityTile(
+  //   IconData icon,
+  //   Color color,
+  //   String title,
+  //   String time,
+  //   String value,
+  // ) {
+  //   return Padding(
+  //     padding: const EdgeInsets.symmetric(vertical: 8.0),
+  //     child: Row(
+  //       children: [
+  //         Icon(icon, color: color, size: 20),
+  //         const SizedBox(width: 12),
+  //         Expanded(
+  //           child: Text(
+  //             title,
+  //             style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
+  //           ),
+  //         ),
+  //         Text(
+  //           value,
+  //           style: GoogleFonts.nunito(
+  //             fontWeight: FontWeight.w700,
+  //             color: AppColors.textDark,
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   Widget _buildAvatar(String initials) {
     return Stack(

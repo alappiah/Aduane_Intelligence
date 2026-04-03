@@ -1,3 +1,4 @@
+import 'package:capstone_frontend/models/weekly_stats.dart';
 import 'package:flutter/material.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -77,6 +78,7 @@ class AppState extends ChangeNotifier {
 
   StreamSubscription<StepCount>? _stepCountSubscription;
   StreamSubscription<PedestrianStatus>? _pedestrianStatusSubscription;
+  List<String> achievements = [];
 
   // ✅ Guard so _initPedometer can never run twice
   bool _pedometerInitialized = false;
@@ -88,6 +90,12 @@ class AppState extends ChangeNotifier {
   // Profile
   UserProfile profile = UserProfile();
   bool notificationsEnabled = true;
+
+  // 🌟 New variables for history
+  List<DailySummary> weeklyDailySummary = [];
+  List<MealEntry> weeklyMealHistory = [];
+  List<WorkoutEntry> weeklyWorkoutHistory = [];
+  bool isLoadingHistory = false;
 
   // App State & Hardware Tracking
   int? currentUserId;
@@ -210,6 +218,10 @@ class AppState extends ChangeNotifier {
         }
       }
 
+      if (data['achievements'] != null) {
+        achievements = List<String>.from(data['achievements']);
+      }
+
       notifyListeners();
     }
   }
@@ -278,17 +290,24 @@ class AppState extends ChangeNotifier {
           notifyListeners();
 
           // 🌟 THE FIX: Silent background sync using the Threshold Method
+          // Inside _initPedometer listener...
           if (currentUserId != null &&
               dailySteps > 0 &&
               (dailySteps - _lastSyncedSteps >= 50)) {
-            print(
-              "🔄 Threshold reached! Syncing $dailySteps steps to database...",
-            );
-            ApiService.syncStepsToDatabase(
+            // 🌟 Capture the list of earned badges
+            List<String> earnedBadges = await ApiService.syncStepsToDatabase(
               userId: currentUserId!,
               steps: dailySteps,
             );
-            _lastSyncedSteps = dailySteps; // 🌟 Reset the tracker after syncing
+
+            _lastSyncedSteps = dailySteps;
+
+            // 🌟 If we got something back, show the celebration!
+            if (earnedBadges.isNotEmpty) {
+              for (String badgeKey in earnedBadges) {
+                _showAchievementPopup(badgeKey);
+              }
+            }
           }
         },
         onError: (error) => print("Step Count Error: $error"),
@@ -333,5 +352,63 @@ class AppState extends ChangeNotifier {
     workouts.clear();
     profile = UserProfile();
     notifyListeners();
+  }
+
+  // 🌟 The fetcher method
+  Future<void> loadWeeklyInsights() async {
+    if (currentUserId == null) return;
+
+    isLoadingHistory = true;
+    notifyListeners();
+
+    final stats = await ApiService.fetchWeeklyStats(currentUserId!);
+
+    if (stats != null) {
+      weeklyDailySummary = stats.dailySummary;
+      weeklyMealHistory = stats.meals;
+      weeklyWorkoutHistory = stats.workouts;
+    }
+
+    isLoadingHistory = false;
+    notifyListeners();
+  }
+
+  void _showAchievementPopup(String badgeKey) {
+    // Map the key to a pretty name
+    String displayName = badgeKey.replaceAll('_', ' ').toUpperCase();
+
+    rootScaffoldMessengerKey.currentState?.showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.emoji_events, color: Colors.amber, size: 30),
+            const SizedBox(width: 15),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "ACHIEVEMENT UNLOCKED!",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    "You earned the $displayName badge!",
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.green.shade800,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      ),
+    );
   }
 }

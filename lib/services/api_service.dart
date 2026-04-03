@@ -1,3 +1,5 @@
+import 'package:capstone_frontend/models/weekly_stats.dart';
+import 'package:capstone_frontend/state/app_state.dart';
 import 'package:dio/dio.dart';
 
 class ApiService {
@@ -282,7 +284,7 @@ class ApiService {
     }
   }
 
-  static Future<bool> syncStepsToDatabase({
+  static Future<List<String>> syncStepsToDatabase({
     required int userId,
     required int steps,
   }) async {
@@ -290,18 +292,21 @@ class ApiService {
       final today = DateTime.now();
       final dateString =
           '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
       final response = await _dio.post(
         '$baseUrl/users/steps/sync',
         data: {'user_id': userId, 'date': dateString, 'steps': steps},
       );
+
       if (response.statusCode == 200) {
-        print("✅ Steps silently synced to database: $steps");
-        return true;
+        // 🌟 Extract the list of new achievements from the backend response
+        List<dynamic> newBadges = response.data['new_achievements'] ?? [];
+        return List<String>.from(newBadges);
       }
-      return false;
+      return [];
     } catch (e) {
       print("❌ Error syncing steps: $e");
-      return false;
+      return [];
     }
   }
 
@@ -359,6 +364,64 @@ class ApiService {
     } catch (e) {
       print("🚨 Error deleting history: $e");
       return false;
+    }
+  }
+
+  static Future<WeeklyStats?> fetchWeeklyStats(int userId) async {
+    try {
+      final response = await _dio.get('$baseUrl/users/stats/weekly/$userId');
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+
+        // 1. Parse the daily breakdown for charts
+        List<DailySummary> summary =
+            (data['daily_summary'] as List)
+                .map((item) => DailySummary.fromJson(item))
+                .toList();
+
+        // 2. Parse the historical meals
+        List<MealEntry> meals =
+            (data['meals'] as List)
+                .map(
+                  (m) => MealEntry(
+                    name: m['name'],
+                    mealType: m['meal_type'] ?? 'Meal',
+                    calories: m['calories'],
+                    carbs: m['carbs'] ?? 0,
+                    protein: m['protein'] ?? 0,
+                    fats: m['fats'] ?? 0,
+                    sodium: m['sodium'] ?? 0,
+                    sugar: m['sugar'] ?? 0,
+                    time: m['time_of_day'] ?? '',
+                  ),
+                )
+                .toList();
+
+        // 3. Parse the historical workouts
+        List<WorkoutEntry> workouts =
+            (data['workouts'] as List)
+                .map(
+                  (w) => WorkoutEntry(
+                    name: w['name'],
+                    type: w['workout_type'] ?? 'Exercise',
+                    durationMinutes: w['duration_minutes'] ?? 0,
+                    caloriesBurned: w['calories_burned'] ?? 0,
+                    time: w['time_of_day'] ?? '',
+                  ),
+                )
+                .toList();
+
+        return WeeklyStats(
+          dailySummary: summary,
+          meals: meals,
+          workouts: workouts,
+        );
+      }
+      return null;
+    } catch (e) {
+      print("❌ Error fetching weekly stats: $e");
+      return null;
     }
   }
 }
