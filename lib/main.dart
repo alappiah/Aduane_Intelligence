@@ -1,15 +1,18 @@
-import 'dart:async'; 
-import 'dart:convert'; 
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:connectivity_plus/connectivity_plus.dart'; 
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:provider/provider.dart';
 
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/home_screen.dart';
 
-import 'services/network_helper.dart'; 
+import 'services/network_helper.dart';
+
+import 'state/app_state.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,7 +28,13 @@ void main() async {
     startingScreen = const LoginScreen();
   }
 
-  runApp(MyApp(initialScreen: startingScreen));
+  // 🌟 2. Wrap your app in the Provider here!
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => AppState(),
+      child: MyApp(initialScreen: startingScreen),
+    ),
+  );
 }
 
 class MyApp extends StatefulWidget {
@@ -39,6 +48,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   late StreamSubscription<List<ConnectivityResult>> _networkSubscription;
+  
 
   @override
   void initState() {
@@ -67,9 +77,9 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: "Capstone Project",
       debugShowCheckedModeBanner: false,
-      
+
       // 🌟 Connects to the key in your helper file
-      scaffoldMessengerKey: rootScaffoldMessengerKey, 
+      scaffoldMessengerKey: rootScaffoldMessengerKey,
 
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
       home: widget.initialScreen,
