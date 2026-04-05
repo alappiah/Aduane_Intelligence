@@ -95,7 +95,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildHeader(BuildContext context) {
     // 🌟 Use widget.user for identity, fallback to Sarah if null
-    final String name = widget.user['firstName'] ?? AppState().profile.name;
+    final String name = widget.user['firstName'] ?? AppState().profile.firstName;
     final String email = widget.user['email'] ?? AppState().profile.email;
     final String initials = name.isNotEmpty ? name[0].toUpperCase() : 'U';
     final String today = DateFormat('EEEE, MMMM d').format(DateTime.now());

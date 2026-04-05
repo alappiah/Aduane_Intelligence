@@ -1,11 +1,15 @@
+import 'dart:convert';
+import 'dart:async';
+
 import 'package:capstone_frontend/models/weekly_stats.dart';
 import 'package:flutter/material.dart';
-import 'package:pedometer/pedometer.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:health/health.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:permission_handler/permission_handler.dart';
+
 import '../services/api_service.dart';
 import '../services/network_helper.dart';
-import 'dart:async';
+import '../services/notification_service.dart';
 
 class MealEntry {
   final String name;
@@ -48,8 +52,10 @@ class WorkoutEntry {
 }
 
 class UserProfile {
-  String name;
+  String firstName;
+  String lastName;
   String email;
+  String healthCondition;
   String dateOfBirth;
   String height;
   String currentWeight;
@@ -59,8 +65,10 @@ class UserProfile {
   int goalSteps;
 
   UserProfile({
-    this.name = 'Sarah Rivera',
+    this.firstName = 'Sarah',
+    this.lastName = 'Rivera',
     this.email = 'sarah.rivera@email.com',
+    this.healthCondition = 'None',
     this.dateOfBirth = 'March 15, 1995',
     this.height = '168',
     this.currentWeight = '65',
@@ -69,73 +77,87 @@ class UserProfile {
     this.goalCalories = 2000,
     this.goalSteps = 10000,
   });
+
+  String get fullName => "$firstName $lastName".trim();
 }
 
-class AppState extends ChangeNotifier {
-  // Singleton
+// 🌟 ADDED `with WidgetsBindingObserver` for the Catch-Up Pattern
+class AppState extends ChangeNotifier with WidgetsBindingObserver {
   static final AppState _instance = AppState._internal();
   factory AppState() => _instance;
 
-  StreamSubscription<StepCount>? _stepCountSubscription;
-  StreamSubscription<PedestrianStatus>? _pedestrianStatusSubscription;
-  List<String> achievements = [];
+  bool _healthInitialized = false;
 
-  // ✅ Guard so _initPedometer can never run twice
-  bool _pedometerInitialized = false;
+  AppState._internal();
 
-  AppState._internal() {
-    _initPedometer();
-  }
-
-  // Profile
   UserProfile profile = UserProfile();
   bool notificationsEnabled = true;
 
-  // 🌟 New variables for history
+  bool _hasShownSettingsDialog = false;
+  bool _hasWarnedAboutSourceApp = false;
+  bool _isFetchingSteps = false;
+  bool _hasHealthPermissions = false;
+
   List<DailySummary> weeklyDailySummary = [];
   List<MealEntry> weeklyMealHistory = [];
   List<WorkoutEntry> weeklyWorkoutHistory = [];
   bool isLoadingHistory = false;
+  List<String> achievements = [];
 
-  // App State & Hardware Tracking
   int? currentUserId;
   int dailySteps = 0;
-  int _lastSyncedSteps = 0; // 🌟 NEW: Tracker for threshold syncing
+  int _lastSyncedSteps = 0;
   int daysActive = 0;
-  String stepStatus = '?';
+  int dailyActiveCalories = 0;
 
-  // Meals & Workouts
   final List<MealEntry> meals = [];
   final List<WorkoutEntry> workouts = [];
 
-  // Computed Macros
   int get totalCaloriesConsumed => meals.fold(0, (sum, m) => sum + m.calories);
   int get totalCaloriesBurned =>
-      workouts.fold(0, (sum, w) => sum + w.caloriesBurned);
+      workouts.fold(0, (sum, w) => sum + w.caloriesBurned) +
+      dailyActiveCalories;
+
   int get totalCarbs => meals.fold(0, (sum, m) => sum + m.carbs);
   int get totalProtein => meals.fold(0, (sum, m) => sum + m.protein);
   int get totalFats => meals.fold(0, (sum, m) => sum + m.fats);
   int get totalSodium => meals.fold(0, (sum, m) => sum + m.sodium);
   int get totalSugar => meals.fold(0, (sum, m) => sum + m.sugar);
 
-  // ---------------------------------------------------------
+  // =========================================================
+  // 🌟 DYNAMIC NOTIFICATION SCHEDULER
+  // =========================================================
+  void _scheduleDynamicReminders(int currentDaysActive) {
+    // ID 100: Morning Brief at 8:00 AM
+    NotificationService.scheduleDaily(
+      id: 100,
+      hour: 8,
+      title: '☀️ Good Morning!',
+      body:
+          'You have been active for $currentDaysActive days! Let\'s make healthy choices today.',
+    );
+
+    // ID 101: Evening Warning at 9:00 PM
+    NotificationService.scheduleDaily(
+      id: 101,
+      hour: 21,
+      title: '🏃 Keep Your Run Going!',
+      body:
+          'The day is almost over. Log your dinner to keep your $currentDaysActive-day active record going!',
+    );
+  }
+
   // Profile Loader
-  // ---------------------------------------------------------
   Future<void> loadUserProfile(int userId) async {
     currentUserId = userId;
     final data = await ApiService.fetchUserProfile(userId);
 
     if (data != null) {
-      String firstName = data['firstName'] ?? '';
-      String lastName = data['lastName'] ?? '';
-      String fullName = [
-        firstName,
-        lastName,
-      ].where((e) => e.isNotEmpty).join(' ');
-
       profile = UserProfile(
-        name: fullName.isNotEmpty ? fullName : 'Unknown User',
+        firstName: data['firstName'] ?? '',
+        lastName: data['lastName'] ?? '',
         email: data['email'] ?? '',
+        healthCondition: data['health_condition'] ?? 'None',
         dateOfBirth: data['dateOfBirth'] ?? '',
         height: '${data['height_cm'] ?? 0}',
         currentWeight: '${data['current_weight_kg'] ?? 0}',
@@ -144,14 +166,12 @@ class AppState extends ChangeNotifier {
         goalCalories: data['goal_calories'] ?? 2000,
         goalSteps: data['goal_steps'] ?? 10000,
       );
-
       notifyListeners();
+      fetchTodaySteps();
     }
   }
 
-  // ---------------------------------------------------------
   // Dashboard Loader
-  // ---------------------------------------------------------
   Future<void> loadDashboardData(int userId) async {
     bool hasInternet = await isConnectedToInternet();
     if (!hasInternet) return;
@@ -160,29 +180,17 @@ class AppState extends ChangeNotifier {
     final data = await ApiService.fetchTodayDashboard(userId);
 
     if (data != null) {
-      final int dbSteps = data['steps'] ?? 0;
       daysActive = data['daysActive'] ?? 0;
 
-      // ✅ If the cloud has MORE steps than what we have locally
-      // (e.g. after reinstall), inherit the cloud value and update
-      // SharedPreferences so the pedometer math stays correct.
+      // 🌟 TRIGGER THE DYNAMIC ALARMS
+      _scheduleDynamicReminders(daysActive);
+
+      final int dbSteps = data['steps'] ?? 0;
       if (dbSteps > dailySteps) {
-        final prefs = await SharedPreferences.getInstance();
-        final int currentAccumulated = prefs.getInt('ped_accumulated') ?? 0;
-
-        if (dbSteps > currentAccumulated) {
-          await prefs.setInt('ped_accumulated', dbSteps);
-          // Force the baseline to recalculate on the next pedometer tick
-          await prefs.remove('ped_baseline');
-        }
-
         dailySteps = dbSteps;
-        _lastSyncedSteps =
-            dbSteps; // 🌟 NEW: Update sync tracker when loading from cloud
-        notifyListeners();
+        _lastSyncedSteps = dbSteps;
       }
 
-      // Load Meals
       meals.clear();
       if (data['meals'] != null) {
         for (var m in data['meals']) {
@@ -202,7 +210,6 @@ class AppState extends ChangeNotifier {
         }
       }
 
-      // Load Workouts
       workouts.clear();
       if (data['workouts'] != null) {
         for (var w in data['workouts']) {
@@ -221,80 +228,150 @@ class AppState extends ChangeNotifier {
       if (data['achievements'] != null) {
         achievements = List<String>.from(data['achievements']);
       }
-
       notifyListeners();
     }
   }
 
-  // ---------------------------------------------------------
-  // Pedometer Logic
-  // ---------------------------------------------------------
-  Future<void> _initPedometer() async {
-    // ✅ Hard guard — if already running, do nothing
-    if (_pedometerInitialized) {
-      print("⚠️ Pedometer already running, skipping re-init.");
-      return;
+  // =========================================================
+  // 🌟 NATIVE HEALTH LOGIC (Catch-Up Pattern)
+  // =========================================================
+
+  // Clean up observer if destroyed
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // The lifecycle listener
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    if (state == AppLifecycleState.resumed) {
+      debugPrint("🚀 App Resumed! Catching up on Health Connect data...");
+      fetchTodaySteps();
+    } else if (state == AppLifecycleState.paused) {
+      debugPrint("💤 App went to background. Going to sleep.");
     }
+  }
 
-    PermissionStatus status = await Permission.activityRecognition.request();
-    print("🔑 Activity Recognition Permission: $status");
+  Future<void> initHealthTracker() async {
+    if (_healthInitialized) return;
+    _healthInitialized = true;
 
-    if (status.isGranted) {
-      _pedometerInitialized = true;
+    // Register to listen to app opens/closes
+    WidgetsBinding.instance.addObserver(this);
 
-      _pedestrianStatusSubscription = Pedometer.pedestrianStatusStream.listen(
-        (PedestrianStatus event) {
-          stepStatus = event.status;
-          notifyListeners();
-        },
-        onError: (error) => print("Pedestrian Status Error: $error"),
-        cancelOnError: false,
-      );
+    // Do one initial fetch
+    await fetchTodaySteps();
+  }
 
-      _stepCountSubscription = Pedometer.stepCountStream.listen(
-        (StepCount event) async {
-          final int hardwareSteps = event.steps;
-          print("👟 Raw hardware steps: $hardwareSteps");
+  Future<void> fetchTodaySteps() async {
+    final health = Health();
+    var types = [HealthDataType.STEPS, HealthDataType.ACTIVE_ENERGY_BURNED];
+    var permissions = [HealthDataAccess.READ, HealthDataAccess.READ];
 
-          final prefs = await SharedPreferences.getInstance();
-          final String today = DateTime.now().toIso8601String().substring(
-            0,
-            10,
+    if (_isFetchingSteps) return;
+    _isFetchingSteps = true;
+
+    try {
+      debugPrint("⏱️ Health Polling: Checking the vault...");
+
+      try {
+        final status = await health.getHealthConnectSdkStatus();
+        if (status != HealthConnectSdkStatus.sdkAvailable) {
+          debugPrint("⚠️ Health Connect not available, status: $status");
+          await health.installHealthConnect();
+          return;
+        }
+      } catch (e) {
+        debugPrint("ℹ️ SDK status check skipped: $e");
+      }
+
+      // VIP PASS WRAPPER
+      if (!_hasHealthPermissions) {
+        bool? alreadyGranted = await health.hasPermissions(
+          types,
+          permissions: permissions,
+        );
+
+        _hasHealthPermissions = await health.requestAuthorization(
+          types,
+          permissions: permissions,
+        );
+
+        if (!_hasHealthPermissions) {
+          debugPrint("❌ Health permissions silently denied by OS.");
+          if (!_hasShownSettingsDialog && alreadyGranted == false) {
+            _hasShownSettingsDialog = true;
+            _promptUserToOpenSettings();
+          }
+          return;
+        }
+      }
+
+      // ACCESS THE VAULT
+      if (_hasHealthPermissions) {
+        var now = DateTime.now();
+        var midnight = DateTime(now.year, now.month, now.day);
+
+        int? fetchedSteps = await health.getTotalStepsInInterval(midnight, now);
+
+        if (fetchedSteps == null) {
+          debugPrint(
+            "⚠️ Health Connect returned null. Keeping previous steps.",
+          );
+          return;
+        }
+
+        int steps = fetchedSteps;
+
+        List<HealthDataPoint> calorieData = await health.getHealthDataFromTypes(
+          startTime: midnight,
+          endTime: now,
+          types: [HealthDataType.ACTIVE_ENERGY_BURNED],
+        );
+
+        double totalActiveCalories = 0.0;
+        for (var point in calorieData) {
+          totalActiveCalories += double.tryParse(point.value.toString()) ?? 0.0;
+        }
+
+        debugPrint(
+          "📊 Health Connect Database says you have: $steps steps today, and burned $totalActiveCalories kcal.",
+        );
+
+        dailyActiveCalories = totalActiveCalories.toInt();
+        notifyListeners();
+
+        if (steps >= 0 && steps != dailySteps) {
+          debugPrint(
+            "👟 Updating app steps from $dailySteps to Native OS steps: $steps",
           );
 
-          final String? savedDate = prefs.getString('ped_date');
-          int savedBaseline = prefs.getInt('ped_baseline') ?? hardwareSteps;
-          int accumulatedSteps = prefs.getInt('ped_accumulated') ?? 0;
-
-          // Midnight rollover — reset for new day
-          if (savedDate != today) {
-            print("🌙 New day detected, resetting pedometer baseline.");
-            savedBaseline = hardwareSteps;
-            accumulatedSteps = 0;
-            await prefs.setString('ped_date', today);
-            await prefs.setInt('ped_baseline', savedBaseline);
-            await prefs.setInt('ped_accumulated', accumulatedSteps);
-          }
-          // Phone reboot — hardware counter restarted from a lower number
-          else if (hardwareSteps < savedBaseline) {
-            print(
-              "⚠️ Pedometer reset detected, locking in $accumulatedSteps steps.",
+          // SCENARIO 3: CHECK IF THEY JUST HIT THEIR GOAL!
+          if (steps >= profile.goalSteps && dailySteps < profile.goalSteps) {
+            NotificationService.showInstantNotification(
+              id: 300,
+              title: '🎉 Step Goal Crashed!',
+              body:
+                  'Amazing job! You just hit your goal of ${profile.goalSteps} steps.',
             );
-            accumulatedSteps = dailySteps;
-            savedBaseline = hardwareSteps;
-            await prefs.setInt('ped_baseline', savedBaseline);
-            await prefs.setInt('ped_accumulated', accumulatedSteps);
           }
-
-          dailySteps = accumulatedSteps + (hardwareSteps - savedBaseline);
+          dailySteps = steps;
           notifyListeners();
 
-          // 🌟 THE FIX: Silent background sync using the Threshold Method
-          // Inside _initPedometer listener...
-          if (currentUserId != null &&
-              dailySteps > 0 &&
-              (dailySteps - _lastSyncedSteps >= 50)) {
-            // 🌟 Capture the list of earned badges
+          bool needsSync = false;
+
+          if (dailySteps - _lastSyncedSteps >= 50) {
+            needsSync = true;
+          } else if (dailySteps < _lastSyncedSteps) {
+            needsSync = true;
+          }
+
+          if (currentUserId != null && dailySteps > 0 && needsSync) {
+            debugPrint("🔄 Syncing $dailySteps steps to database...");
             List<String> earnedBadges = await ApiService.syncStepsToDatabase(
               userId: currentUserId!,
               steps: dailySteps,
@@ -302,21 +379,22 @@ class AppState extends ChangeNotifier {
 
             _lastSyncedSteps = dailySteps;
 
-            // 🌟 If we got something back, show the celebration!
             if (earnedBadges.isNotEmpty) {
               for (String badgeKey in earnedBadges) {
                 _showAchievementPopup(badgeKey);
               }
             }
           }
-        },
-        onError: (error) => print("Step Count Error: $error"),
-        cancelOnError: false,
-      );
-    } else {
-      print("❌ Permission to access activity recognition was denied.");
+        }
+      }
+    } catch (e) {
+      debugPrint("❌ CRITICAL ERROR with Health Connect: $e");
+    } finally {
+      _isFetchingSteps = false;
     }
   }
+
+  // =========================================================
 
   void addMeal(MealEntry meal) {
     meals.insert(0, meal);
@@ -333,49 +411,83 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void updateProfile(UserProfile updated) {
+  Future<void> updateProfile(UserProfile updated) async {
     profile = updated;
     notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? userJson = prefs.getString('saved_user');
+
+      if (userJson != null) {
+        Map<String, dynamic> userData = json.decode(userJson);
+
+        userData['firstName'] = updated.firstName;
+        userData['lastName'] = updated.lastName;
+        userData['email'] = updated.email;
+        userData['health_condition'] = updated.healthCondition;
+        userData['height_cm'] =
+            int.tryParse(updated.height.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+        userData['current_weight_kg'] =
+            double.tryParse(
+              updated.currentWeight.replaceAll(RegExp(r'[^0-9.]'), ''),
+            ) ??
+            0.0;
+        userData['goal_weight_kg'] =
+            double.tryParse(
+              updated.goalWeight.replaceAll(RegExp(r'[^0-9.]'), ''),
+            ) ??
+            0.0;
+        userData['goal_calories'] = updated.goalCalories;
+        userData['goal_steps'] = updated.goalSteps;
+        userData['activity_level'] = updated.activityLevel;
+
+        await prefs.setString('saved_user', json.encode(userData));
+        debugPrint("✅ Local 'saved_user' cache updated for next restart!");
+      }
+    } catch (e) {
+      debugPrint("❌ Failed to update local cache: $e");
+    }
   }
 
-  // ---------------------------------------------------------
-  // Logout Wiper
-  // ---------------------------------------------------------
-  // ✅ DO NOT cancel the pedometer or call _initPedometer here.
-  // The hardware stream survives logout/login — only the user data resets.
   void resetState() {
     currentUserId = null;
     dailySteps = 0;
-    _lastSyncedSteps = 0; // 🌟 NEW: Wipe the tracker on logout
+    _lastSyncedSteps = 0;
     daysActive = 0;
+    dailyActiveCalories = 0;
     meals.clear();
     workouts.clear();
     profile = UserProfile();
+    _healthInitialized = false;
+    _hasHealthPermissions = false;
     notifyListeners();
   }
 
-  // 🌟 The fetcher method
   Future<void> loadWeeklyInsights() async {
     if (currentUserId == null) return;
-
     isLoadingHistory = true;
     notifyListeners();
 
     final stats = await ApiService.fetchWeeklyStats(currentUserId!);
-
     if (stats != null) {
       weeklyDailySummary = stats.dailySummary;
       weeklyMealHistory = stats.meals;
       weeklyWorkoutHistory = stats.workouts;
     }
-
     isLoadingHistory = false;
     notifyListeners();
   }
 
   void _showAchievementPopup(String badgeKey) {
-    // Map the key to a pretty name
     String displayName = badgeKey.replaceAll('_', ' ').toUpperCase();
+
+    // SCENARIO 4: TRIGGER THE INSTANT BADGE NOTIFICATION
+    NotificationService.showInstantNotification(
+      id: 400,
+      title: '🏆 Achievement Unlocked!',
+      body: 'You earned the $displayName badge!',
+    );
 
     rootScaffoldMessengerKey.currentState?.showSnackBar(
       SnackBar(
@@ -409,6 +521,37 @@ class AppState extends ChangeNotifier {
         duration: const Duration(seconds: 5),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       ),
+    );
+  }
+
+  void _promptUserToOpenSettings() {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Action Required"),
+          content: const Text(
+            "Aduane Intelligence needs access to your step count to track your daily goals. \n\n"
+            "Because permission was previously dismissed, you need to manually allow 'Steps' in your Health Connect settings.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                openAppSettings();
+              },
+              child: const Text("Open Settings"),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -5,6 +5,7 @@ import '../theme/app_colors.dart';
 import '../state/app_state.dart';
 import '../services/api_service.dart'; // 🌟 1. Import your ApiService
 import '../services/network_helper.dart'; // 🌟 1. Import your ApiService
+import '../services/notification_service.dart';
 
 // 🌟 2. Update to accept the user payload
 void showLogMealSheet(BuildContext context, Map<String, dynamic> user) {
@@ -98,6 +99,15 @@ class _LogMealSheetState extends State<_LogMealSheet> {
         );
       }
       return;
+    }
+
+    // 🌟 2. SUCCESS! CANCEL THE ALARM!
+    if (_selectedMealType == 'Breakfast') {
+      NotificationService.cancelNotification(201);
+    } else if (_selectedMealType == 'Lunch') {
+      NotificationService.cancelNotification(202);
+    } else if (_selectedMealType == 'Dinner') {
+      NotificationService.cancelNotification(203);
     }
 
     // 🌟 6. If the API succeeds, update the local UI!

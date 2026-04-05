@@ -77,6 +77,42 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToBottom();
   }
 
+  Future<void> _handleLogAction(
+    int index,
+    Map<String, dynamic> actionData,
+  ) async {
+    // Use your static ApiService function!
+    bool success = await ApiService.logMeal(
+      userId: widget.user['id'],
+      name: actionData['food_name'],
+      mealType: "Lunch",
+      calories: actionData['calories'],
+      carbs: 0,
+      protein: 0,
+      fats: 0,
+      sodium: 0,
+      sugar: 0, // Fill these as needed
+      time: DateTime.now().toIso8601String(),
+    );
+
+    if (success) {
+      // 🌟 1. Refresh Global Dashboard (Steps/Cals)
+      await AppState().loadDashboardData(widget.user['id']);
+
+      // 🌟 2. HIDE THE BUTTON: Clear log_data from this specific message
+      setState(() {
+        _messages[index]['log_data'] = null;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("✅ Meal logged!"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
   Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
@@ -258,16 +294,22 @@ class _ChatScreenState extends State<ChatScreen> {
                           _messages[aiIndex]['recipes'].add(packet['content']),
                     );
                     _scrollToBottom();
+                  }
+                  // 🌟 FIXED SYNTAX HERE:
+                  else if (packet['type'] == 'log_action') {
+                    setState(() {
+                      _messages[aiIndex]['log_data'] = packet;
+                    });
+                    _scrollToBottom();
                   } else if (packet['type'] == 'done') {
-                    // 🟢 SCENARIO A: The AI finished normally!
                     setState(() {
                       _isLoading = false;
                       _isGenerating = false;
                     });
-                    await finalizeAndSave(); // Save!
+                    await finalizeAndSave();
                   }
                 } catch (e) {
-                  print("JSON Parsing error: $e");
+                  debugPrint("JSON Parsing error: $e");
                 }
               }
             },
@@ -414,6 +456,9 @@ class _ChatScreenState extends State<ChatScreen> {
     required List<dynamic> recipes,
     required bool isEditable,
   }) {
+    // 🌟 FIX 1: Define 'msg' so the widget knows which message data to look at
+    final msg = _messages[index];
+
     return Column(
       crossAxisAlignment:
           isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -421,8 +466,7 @@ class _ChatScreenState extends State<ChatScreen> {
         Row(
           mainAxisAlignment:
               isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-          crossAxisAlignment:
-              CrossAxisAlignment.start, // aligns avatar/button to top
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (!isMe) ...[
               const CircleAvatar(
@@ -437,7 +481,6 @@ class _ChatScreenState extends State<ChatScreen> {
               const SizedBox(width: 12),
             ],
 
-            // --- 🟢 NEW: ADD THE EDIT BUTTON FOR USER MESSAGES ---
             if (isEditable)
               IconButton(
                 icon: const Icon(Icons.edit, size: 20, color: Colors.grey),
@@ -461,11 +504,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 },
               ),
 
-            if (isEditable)
-              const SizedBox(width: 8), // Small gap between pencil and bubble
-            // ----------------------------------------------------
+            if (isEditable) const SizedBox(width: 8),
 
-            // TEXT BUBBLE
             Flexible(
               child: Container(
                 padding: const EdgeInsets.all(16),
@@ -496,25 +536,67 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
 
-        // RECIPE CARDS CAROUSEL (Only if there are recipes)
+        // 🌟 FIX 2: LOG ACTION CARD
+        // Check if log_data exists and isn't null
+        if (msg['log_data'] != null) ...[
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.only(
+              left: 44,
+            ), // Align with the text bubble
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFF41B9A1).withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  // Changed from the Japanese character error to Icons.bolt
+                  const Icon(Icons.bolt, color: Colors.orange),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "Log ${msg['log_data']['food_name']} (${msg['log_data']['calories']} kcal)?",
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => _handleLogAction(index, msg['log_data']),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF41B9A1),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text("Log"),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+
         if (recipes.isNotEmpty) ...[
           const SizedBox(height: 12),
           SizedBox(
-            height: 240, // Height for the card row
+            height: 240,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              // Add left padding to align with the bot text
               padding: const EdgeInsets.only(left: 44),
               itemCount: recipes.length,
               itemBuilder: (context, index) {
-                // Use the RecipeCard widget we created earlier
                 return RecipeCard(recipe: recipes[index]);
               },
             ),
           ),
         ],
 
-        const SizedBox(height: 24), // Spacing between messages
+        const SizedBox(height: 24),
       ],
     );
   }

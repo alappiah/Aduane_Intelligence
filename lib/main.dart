@@ -11,11 +11,16 @@ import 'screens/forgot_password_screen.dart';
 import 'screens/home_screen.dart';
 
 import 'services/network_helper.dart';
+import 'services/notification_service.dart';
 
 import 'state/app_state.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 🌟 1. INITIALIZE NOTIFICATIONS HERE!
+  // This tells the phone's OS to get ready to send alerts
+  await NotificationService.init();
 
   final prefs = await SharedPreferences.getInstance();
   final String? savedUserString = prefs.getString('saved_user');
@@ -28,13 +33,14 @@ void main() async {
     startingScreen = const LoginScreen();
   }
 
-  // 🌟 2. Wrap your app in the Provider here!
   runApp(
     ChangeNotifierProvider(
       create: (context) => AppState(),
       child: MyApp(initialScreen: startingScreen),
     ),
   );
+
+  await AppState().initHealthTracker();
 }
 
 class MyApp extends StatefulWidget {
@@ -48,18 +54,21 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   late StreamSubscription<List<ConnectivityResult>> _networkSubscription;
-  
 
   @override
   void initState() {
     super.initState();
 
-    // 🌟 Keeps the passive listener running in the background
+    // 🌟 2. CALL THE FUNCTION HERE!
+    // As soon as the app opens, schedule the morning/evening alerts
+    setupDailyStaticReminders();
+
+    // Keeps the passive listener running in the background
     _networkSubscription = Connectivity().onConnectivityChanged.listen((
       List<ConnectivityResult> results,
     ) {
       if (results.contains(ConnectivityResult.none) || results.isEmpty) {
-        showOfflineWarning(); // This now safely calls your helper file!
+        showOfflineWarning();
       } else {
         rootScaffoldMessengerKey.currentState?.hideCurrentSnackBar();
       }
@@ -77,16 +86,62 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: "Capstone Project",
       debugShowCheckedModeBanner: false,
-
-      // 🌟 Connects to the key in your helper file
       scaffoldMessengerKey: rootScaffoldMessengerKey,
-
+      navigatorKey: navigatorKey,
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
       home: widget.initialScreen,
       routes: {
         '/register': (context) => RegisterScreen(),
         '/forgot_password_screen': (context) => ForgotPasswordScreen(),
       },
+    );
+  }
+
+  // 🌟 (Your function stays exactly the same)
+  void setupDailyStaticReminders() {
+    final state = AppState();
+    // ID 100: Morning Brief at 8:00 AM
+    // ID 100: Morning Brief at 8:00 AM
+    NotificationService.scheduleDaily(
+      id: 100,
+      hour: 8,
+      title: '☀️ Good Morning!',
+      body:
+          "You have been active for ${state.daysActive} days! Let's make healthy choices today.",
+    );
+
+    // ID 101: Evening Warning at 9:00 PM
+    NotificationService.scheduleDaily(
+      id: 101,
+      hour: 21,
+      title: '🏃 Keep Your Run Going!',
+      body:
+          'The day is almost over. Log your dinner to keep your ${state.daysActive}-day active record going!',
+    );
+
+    // ID 201: Breakfast Reminder at 10:00 AM
+    NotificationService.scheduleDaily(
+      id: 201,
+      hour: 10,
+      title: '🍳 Breakfast Time!',
+      body: 'Did you have Hausa Koko or Waakye today? Don\'t forget to log it.',
+    );
+
+    // ID 202: Lunch Reminder at 2:00 PM
+    NotificationService.scheduleDaily(
+      id: 202,
+      hour: 14,
+      title: '🍛 Lunch Time!',
+      body: 'Fuel up for the afternoon. Log your lunch when you finish eating!',
+    );
+
+    // ID 203: Dinner Reminder at 8:00 PM
+    NotificationService.scheduleDaily(
+      id: 203,
+      hour: 20,
+      title: '🍲 Dinner Time!',
+      body:
+          'Time to wind down. Log your dinner to keep your calories accurate.',
     );
   }
 }
