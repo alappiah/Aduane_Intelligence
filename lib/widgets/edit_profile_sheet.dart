@@ -32,7 +32,8 @@ class _EditProfileSheet extends StatefulWidget {
 
 class _EditProfileSheetState extends State<_EditProfileSheet> {
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _nameCtrl;
+  late TextEditingController _fNameCtrl;
+  late TextEditingController _lNameCtrl;
   late TextEditingController _emailCtrl;
   late TextEditingController _dobCtrl;
   late TextEditingController _heightCtrl;
@@ -72,9 +73,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
       lastName,
     ].where((e) => e.isNotEmpty).join(' ');
 
-    _nameCtrl = TextEditingController(
-      text: dbName.isNotEmpty ? dbName : p.name,
-    );
+    _fNameCtrl = TextEditingController(text: p.firstName);
+    _lNameCtrl = TextEditingController(text: p.lastName);
     _emailCtrl = TextEditingController(text: widget.user['email'] ?? p.email);
     _dobCtrl = TextEditingController(text: p.dateOfBirth);
 
@@ -112,7 +112,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
+    _fNameCtrl.dispose();
+    _lNameCtrl.dispose();
     _emailCtrl.dispose();
     _dobCtrl.dispose();
     _heightCtrl.dispose();
@@ -156,7 +157,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
     if (!_formKey.currentState!.validate()) return;
 
     final updatedData = {
-      "name": _nameCtrl.text.trim(),
+      "firstName": _fNameCtrl.text.trim(),
+      "lastName": _lNameCtrl.text.trim(),
       "email": _emailCtrl.text.trim(),
       "health_condition": _selectedHealthCondition,
       "dateOfBirth": _dobCtrl.text.trim(),
@@ -170,7 +172,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
 
     bool success = await ApiService.updateUserProfile(
       userId: widget.user['id'],
-      firstName: _nameCtrl.text.trim(),
+      firstName: _fNameCtrl.text.trim(),
+      lastName: _lNameCtrl.text.trim(),
       dateOfBirth: _dobCtrl.text.trim(),
       height: int.tryParse(_heightCtrl.text.trim()) ?? 0,
       currentWeight: double.tryParse(_weightCtrl.text.trim()) ?? 0.0,
@@ -198,12 +201,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
     }
 
     // 🌟 THE COMPLETE FIX: Overwrite EVERY field in the parent map!
-    // We split the name into first and last to match your database structure
-    final nameParts = _nameCtrl.text.trim().split(' ');
-    widget.user['firstName'] = nameParts.first;
-    widget.user['lastName'] =
-        nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
-
+    widget.user['firstName'] = _fNameCtrl.text.trim();
+    widget.user['lastName'] = _lNameCtrl.text.trim();
     widget.user['email'] = _emailCtrl.text.trim();
     widget.user['health_condition'] = _selectedHealthCondition;
     widget.user['activity_level'] = _activityLevel;
@@ -216,15 +215,17 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
     // Update the local AppState
     AppState().updateProfile(
       UserProfile(
-        name: updatedData["name"] as String,
-        email: updatedData["email"] as String,
-        dateOfBirth: updatedData["dateOfBirth"] as String,
-        height: updatedData["height"] as String,
-        currentWeight: updatedData["currentWeight"] as String,
-        goalWeight: updatedData["goalWeight"] as String,
-        activityLevel: updatedData["activityLevel"] as String,
-        goalCalories: updatedData["goalCalories"] as int,
-        goalSteps: updatedData["goalSteps"] as int,
+        firstName: _fNameCtrl.text.trim(),
+        lastName: _lNameCtrl.text.trim(),
+        email: _emailCtrl.text.trim(),
+        healthCondition: _selectedHealthCondition, // 🌟 Safe and direct!
+        dateOfBirth: _dobCtrl.text.trim(),
+        height: _heightCtrl.text.trim(),
+        currentWeight: _weightCtrl.text.trim(),
+        goalWeight: _goalWeightCtrl.text.trim(),
+        activityLevel: _activityLevel, // 🌟 Safe and direct!
+        goalCalories: int.tryParse(_goalCaloriesCtrl.text.trim()) ?? 2000,
+        goalSteps: int.tryParse(_goalStepsCtrl.text.trim()) ?? 10000,
       ),
     );
 
@@ -319,11 +320,26 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
 
                       _sectionLabel('Personal Details'),
                       const SizedBox(height: 10),
-                      _field(
-                        'Full Name *',
-                        _nameCtrl,
-                        'e.g. Sarah Rivera',
-                        validator: (v) => v!.isEmpty ? 'Required' : null,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _field(
+                              'First Name *',
+                              _fNameCtrl,
+                              'e.g. Sarah',
+                              validator: (v) => v!.isEmpty ? 'Required' : null,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _field(
+                              'Last Name *',
+                              _lNameCtrl,
+                              'e.g. Rivera',
+                              validator: (v) => v!.isEmpty ? 'Required' : null,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 12),
                       _field(

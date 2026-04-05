@@ -15,6 +15,9 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+
+        
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -26,7 +29,8 @@ android {
         applicationId = "com.example.capstone_frontend"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // minSdk = flutter.minSdkVersion
+        minSdk = 26
         // targetSdk = flutter.targetSdkVersion
         targetSdk = 35
         versionCode = flutter.versionCode
@@ -52,4 +56,10 @@ configurations.all {
         force("androidx.core:core:1.16.0")
         force("androidx.core:core-ktx:1.16.0")
     }
+}
+
+dependencies {
+    
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+       
 }

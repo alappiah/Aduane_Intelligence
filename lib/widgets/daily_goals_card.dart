@@ -41,12 +41,10 @@ class _DailyGoalsCardState extends State<DailyGoalsCard> {
 
     // 🌟 2. Get Current Progress for TODAY
     final int currentCalories = state.totalCaloriesConsumed;
-    final int currentSteps =
-        state.dailySteps; // Driven by the hardware pedometer!
+    final int currentSteps = state.dailySteps; // Driven by the hardware pedometer!
 
     // 🌟 3. Calculate Percentages
-    double caloriePercent =
-        dailyCalorieGoal > 0 ? currentCalories / dailyCalorieGoal : 0.0;
+    double caloriePercent = dailyCalorieGoal > 0 ? currentCalories / dailyCalorieGoal : 0.0;
     double stepPercent = dailyStepGoal > 0 ? currentSteps / dailyStepGoal : 0.0;
 
     // Cap at 1.0 (100%) so the circle animation doesn't break
@@ -55,14 +53,17 @@ class _DailyGoalsCardState extends State<DailyGoalsCard> {
 
     return CustomCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center, // Centered for the new text
         children: [
-          Text(
-            'Daily Progress', // 🌟 Updated the title
-            style: GoogleFonts.nunito(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textDark,
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Daily Progress',
+              style: GoogleFonts.nunito(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textDark,
+              ),
             ),
           ),
           const SizedBox(height: 20),
@@ -74,17 +75,39 @@ class _DailyGoalsCardState extends State<DailyGoalsCard> {
                 percentText: '${(stepPercent * 100).toInt()}%',
                 percentValue: stepPercent,
                 color: AppColors.pink,
-                isBudgetMode: false, // Normal target (Gets a Trophy!)
+                isBudgetMode: false, // Normal target
               ),
               DailyGoalCircle(
                 label: 'Calories',
                 percentText: '${(caloriePercent * 100).toInt()}%',
                 percentValue: caloriePercent,
                 color: AppColors.teal,
-                isBudgetMode: true, // Dietary Limit (Turns Orange/Red!)
+                isBudgetMode: true, // Dietary Limit
               ),
             ],
           ),
+          
+          // 🌟 THE NEW UI HINT!
+          // This will dynamically appear and disappear based on the vault
+          if (currentSteps == 0) ...[
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.bg, // A soft gray/light background
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                "0 steps yet? Let's get moving!\n(If you have walked, ensure Samsung Health is synced)",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.nunito(
+                  color: AppColors.textMedium,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
