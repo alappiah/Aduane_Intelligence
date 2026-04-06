@@ -1,11 +1,13 @@
 import 'package:capstone_frontend/models/weekly_stats.dart';
 import 'package:capstone_frontend/state/app_state.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 
 class ApiService {
   // If using Android Emulator, 10.0.2.2 points to your laptop's localhost.
   // static const String baseUrl = 'http://192.168.100.55:8000';
-  static const String baseUrl = 'https://aduane-intelligence-backend.onrender.com';
+  static const String baseUrl =
+      'https://aduane-intelligence-backend.onrender.com';
   // static const String baseUrl = 'http://10.0.2.2:8000';
   //uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
@@ -289,6 +291,7 @@ class ApiService {
   static Future<List<String>> syncStepsToDatabase({
     required int userId,
     required int steps,
+    required int calories, // 🌟 NEW: Added the calories parameter
   }) async {
     try {
       final today = DateTime.now();
@@ -297,7 +300,12 @@ class ApiService {
 
       final response = await _dio.post(
         '$baseUrl/users/steps/sync',
-        data: {'user_id': userId, 'date': dateString, 'steps': steps},
+        data: {
+          'user_id': userId,
+          'date': dateString,
+          'steps': steps,
+          'calories_burned': calories, // 🌟 NEW: Send to Python backend
+        },
       );
 
       if (response.statusCode == 200) {
@@ -307,7 +315,39 @@ class ApiService {
       }
       return [];
     } catch (e) {
-      print("❌ Error syncing steps: $e");
+      debugPrint("❌ Error syncing steps and calories: $e");
+      return [];
+    }
+  }
+
+  static Future<void> updateFCMToken(int userId, String token) async {
+    try {
+      // Dio automatically encodes the Map into JSON
+      // and adds 'application/json' headers for you!
+      final response = await _dio.post(
+        '$baseUrl/users/$userId/update-fcm-token',
+        data: {'fcm_token': token},
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint("✅ Token synced to backend via Dio");
+      }
+    } on DioException catch (e) {
+      // Dio has specific error types which makes debugging much easier
+      debugPrint("❌ Token sync failed: ${e.message}");
+      if (e.response != null) {
+        debugPrint("Server Error Data: ${e.response?.data}");
+      }
+    } catch (e) {
+      debugPrint("❌ An unexpected error occurred: $e");
+    }
+  }
+
+  static Future<List<dynamic>> getUserAchievements(int userId) async {
+    try {
+      final response = await _dio.get('/users/$userId/achievements');
+      return response.data; // This returns the ["first_steps"] list
+    } catch (e) {
       return [];
     }
   }

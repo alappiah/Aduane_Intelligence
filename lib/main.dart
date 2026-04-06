@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:provider/provider.dart';
+import 'package:workmanager/workmanager.dart';
 
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
@@ -14,14 +17,80 @@ import 'services/network_helper.dart';
 import 'services/notification_service.dart';
 
 import 'state/app_state.dart';
+import 'firebase_options.dart';
+
+// ==========================================
+// 1. BACKGROUND HANDLERS (Must be top-level)
+// ==========================================
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  debugPrint("Handling a background message: ${message.messageId}");
+}
+
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    debugPrint("🔋 Workmanager: Waking up to sync health data...");
+
+    WidgetsFlutterBinding.ensureInitialized();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+
+    // Get the UserID from storage (AppState is empty in the background!)
+    final prefs = await SharedPreferences.getInstance();
+    final String? userJson = prefs.getString('saved_user');
+
+    if (userJson != null) {
+      final userData = jsonDecode(userJson);
+      final int userId =
+          userData['id'] ?? userData['user_id']; // Adapt to your JSON keys
+
+      // Run the sync
+      final state = AppState();
+      state.currentUserId = userId;
+      await state.initHealthTracker();
+      await state.fetchTodaySteps();
+
+      debugPrint("✅ Background Sync Complete for User $userId");
+    }
+
+    return Future.value(true);
+  });
+}
+
+// ==========================================
+// 2. MAIN APP ENTRY POINT
+// ==========================================
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 🌟 1. INITIALIZE NOTIFICATIONS HERE!
-  // This tells the phone's OS to get ready to send alerts
+  // Initialize Firebase & FCM
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   await NotificationService.init();
 
+  // Initialize Workmanager for Background Sync
+  Workmanager().initialize(
+    callbackDispatcher,
+    isInDebugMode: false, // 🌟 Set to false before submitting your capstone!
+  );
+
+  Workmanager().registerPeriodicTask(
+    "1",
+    "healthSyncTask",
+    frequency: const Duration(minutes: 15),
+    constraints: Constraints(networkType: NetworkType.connected),
+  );
+
+  // Initialize App State
+  final appState = AppState();
+  await appState.initHealthTracker();
+
+  // Check Persistent Login
   final prefs = await SharedPreferences.getInstance();
   final String? savedUserString = prefs.getString('saved_user');
 
@@ -34,14 +103,16 @@ void main() async {
   }
 
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => AppState(),
+    ChangeNotifierProvider.value(
+      value: appState,
       child: MyApp(initialScreen: startingScreen),
     ),
   );
-
-  await AppState().initHealthTracker();
 }
+
+// ==========================================
+// 3. ROOT APP WIDGET
+// ==========================================
 
 class MyApp extends StatefulWidget {
   final Widget initialScreen;
@@ -59,11 +130,13 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
 
-    // 🌟 2. CALL THE FUNCTION HERE!
-    // As soon as the app opens, schedule the morning/evening alerts
-    setupDailyStaticReminders();
+    // // 🌟 Wait for the widget tree to build, then grab the REAL AppState
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   final state = Provider.of<AppState>(context, listen: false);
 
-    // Keeps the passive listener running in the background
+    // });
+
+    // Network connectivity listener
     _networkSubscription = Connectivity().onConnectivityChanged.listen((
       List<ConnectivityResult> results,
     ) {
@@ -84,64 +157,19 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: "Capstone Project",
+      title: "Aduane Intelligence",
       debugShowCheckedModeBanner: false,
       scaffoldMessengerKey: rootScaffoldMessengerKey,
       navigatorKey: navigatorKey,
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
       home: widget.initialScreen,
       routes: {
-        '/register': (context) => RegisterScreen(),
-        '/forgot_password_screen': (context) => ForgotPasswordScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/forgot_password_screen': (context) => const ForgotPasswordScreen(),
       },
     );
   }
 
-  // 🌟 (Your function stays exactly the same)
-  void setupDailyStaticReminders() {
-    final state = AppState();
-    // ID 100: Morning Brief at 8:00 AM
-    // ID 100: Morning Brief at 8:00 AM
-    NotificationService.scheduleDaily(
-      id: 100,
-      hour: 8,
-      title: '☀️ Good Morning!',
-      body:
-          "You have been active for ${state.daysActive} days! Let's make healthy choices today.",
-    );
-
-    // ID 101: Evening Warning at 9:00 PM
-    NotificationService.scheduleDaily(
-      id: 101,
-      hour: 21,
-      title: '🏃 Keep Your Run Going!',
-      body:
-          'The day is almost over. Log your dinner to keep your ${state.daysActive}-day active record going!',
-    );
-
-    // ID 201: Breakfast Reminder at 10:00 AM
-    NotificationService.scheduleDaily(
-      id: 201,
-      hour: 10,
-      title: '🍳 Breakfast Time!',
-      body: 'Did you have Hausa Koko or Waakye today? Don\'t forget to log it.',
-    );
-
-    // ID 202: Lunch Reminder at 2:00 PM
-    NotificationService.scheduleDaily(
-      id: 202,
-      hour: 14,
-      title: '🍛 Lunch Time!',
-      body: 'Fuel up for the afternoon. Log your lunch when you finish eating!',
-    );
-
-    // ID 203: Dinner Reminder at 8:00 PM
-    NotificationService.scheduleDaily(
-      id: 203,
-      hour: 20,
-      title: '🍲 Dinner Time!',
-      body:
-          'Time to wind down. Log your dinner to keep your calories accurate.',
-    );
-  }
 }
+
+

@@ -1,3 +1,4 @@
+import 'package:firebase_messaging/firebase_messaging.dart'; // 🌟 Add this
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -7,10 +8,14 @@ class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
+  // 🌟 NEW: Firebase Messaging Instance
+  static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+
   static Future<void> init() async {
     try {
       tz.initializeTimeZones();
 
+      // 1. Local Notification Settings
       const AndroidInitializationSettings androidSettings =
           AndroidInitializationSettings('@drawable/ic_notification');
 
@@ -26,28 +31,67 @@ class NotificationService {
         iOS: iosSettings,
       );
 
-      // 🌟 Move initialize TO THE TOP so the plugin is ready
-      // before we ask for permissions.
       await _notificationsPlugin.initialize(initSettings);
 
-      final androidImplementation =
-          _notificationsPlugin
-              .resolvePlatformSpecificImplementation<
-                AndroidFlutterLocalNotificationsPlugin
-              >();
+      // 2. Request Firebase Permissions (Android 13+ & iOS)
+      NotificationSettings settings = await _messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
 
-      if (androidImplementation != null) {
-        await androidImplementation.requestNotificationsPermission();
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        debugPrint('✅ User granted Firebase permission');
       }
+
+      // 3. Handle Foreground Messages
+      // This is crucial! Without this, if the app is open, nothing happens
+      // when a Firebase message arrives.
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        debugPrint("📩 Firebase Message Received in Foreground!");
+
+        // We use your existing local notification function to show the "Popup"
+        if (message.notification != null) {
+          showInstantNotification(
+            id: message.hashCode,
+            title: message.notification!.title ?? "Aduane Intelligence",
+            body: message.notification!.body ?? "",
+          );
+        }
+      });
     } catch (e) {
-      // If the icon is missing, the app will still open,
-      // and you'll see this error in your logs instead of a hang!
       debugPrint("⚠️ Notification Init Failed: $e");
+    }
+
+    // 1. Handling the tap when the app is in the BACKGROUND
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      debugPrint("🖱️ Notification Tapped while in background!");
+      // Example: navigatorKey.currentState?.pushNamed('/activity_hub');
+    });
+
+    // 2. Handling the tap when the app was COMPLETELY CLOSED (Terminated)
+    RemoteMessage? initialMessage = await _messaging.getInitialMessage();
+    if (initialMessage != null) {
+      debugPrint("🚀 App opened from a terminated state via notification!");
+      // You can handle logic here to deep-link to a specific screen
+    }
+  }
+
+  // 🌟 NEW: Get the Device Address (Token)
+  // Call this after the user logs in to send their token to your Python backend
+  static Future<String?> getDeviceToken() async {
+    try {
+      String? token = await _messaging.getToken();
+      debugPrint("📱 FCM Device Token: $token");
+      return token;
+    } catch (e) {
+      debugPrint("❌ Failed to get FCM token: $e");
+      return null;
     }
   }
 
   // ==========================================
-  // 1. INSTANT NOTIFICATIONS (Goals, Badges, Sedentary)
+  // 1. INSTANT NOTIFICATIONS (Used for local & Firebase foreground)
   // ==========================================
   static Future<void> showInstantNotification({
     required int id,
@@ -67,7 +111,7 @@ class NotificationService {
   }
 
   // ==========================================
-  // 2. SCHEDULED DAILY NOTIFICATIONS (Morning Brief, Meals, Streak)
+  // 2. SCHEDULED DAILY NOTIFICATIONS (Meals/Reminders)
   // ==========================================
   static Future<void> scheduleDaily({
     required int id,
@@ -83,10 +127,9 @@ class NotificationService {
       now.day,
       hour,
       0,
-      0
+      0,
     );
 
-    // If the time has already passed today, schedule for tomorrow
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
@@ -103,17 +146,14 @@ class NotificationService {
           importance: Importance.defaultImportance,
         ),
       ),
+      // 🌟 Pro-tip: Use .exactAllowWhileIdle if you need 8 AM to be EXACT
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents:
-          DateTimeComponents.time, // Repeats daily at this time!
+      matchDateTimeComponents: DateTimeComponents.time,
     );
   }
 
-  // ==========================================
-  // 3. CANCELLATION (The UX Magic)
-  // ==========================================
   static Future<void> cancelNotification(int id) async {
     await _notificationsPlugin.cancel(id);
   }
