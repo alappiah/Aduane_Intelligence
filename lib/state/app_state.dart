@@ -327,20 +327,46 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
         int steps = fetchedSteps;
 
-        List<HealthDataPoint> calorieData = await health.getHealthDataFromTypes(
+        List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(
           startTime: midnight,
           endTime: now,
-          types: [HealthDataType.ACTIVE_ENERGY_BURNED],
+          types: types,
         );
 
         double totalActiveCalories = 0.0;
-        for (var point in calorieData) {
-          totalActiveCalories += double.tryParse(point.value.toString()) ?? 0.0;
+        String debugMessage = "All good"; // Temporary string for the screen
+
+        try {
+          for (var point in healthData) {
+            if (point.type == HealthDataType.ACTIVE_ENERGY_BURNED) {
+              // This is the official, safe way to extract the number
+              var rawValue = point.value;
+
+              // Check if the package is returning the standard numeric value
+              // Note: Depending on the exact package version, 'rawValue' might just
+              // be cast directly. We check both to be 100% safe.
+              try {
+                // Try the standard property first
+                totalActiveCalories += double.parse(
+                  rawValue.toString().replaceAll(RegExp(r'[^0-9.]'), ''),
+                );
+              } catch (e) {
+                debugMessage = "Parse err: ${rawValue.toString()}";
+              }
+            }
+          }
+        } catch (e) {
+          debugMessage = "Loop err: $e";
         }
 
-        debugPrint(
-          "📊 Health Connect Database says you have: $steps steps today, and burned $totalActiveCalories kcal.",
-        );
+        // 🌟 ONLY FOR TESTING: Show a snackbar on your phone if something broke
+        if (debugMessage != "All good") {
+          // Assuming you have access to a context or a global key. If not,
+          // just assign 'debugMessage' to a visible Text widget on your dashboard!
+          debugPrint("UI ERROR: $debugMessage");
+        }
+
+        dailyActiveCalories = totalActiveCalories.toInt();
 
         dailyActiveCalories = totalActiveCalories.toInt();
         notifyListeners();
