@@ -18,6 +18,7 @@ import 'services/notification_service.dart';
 
 import 'state/app_state.dart';
 import 'firebase_options.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // ==========================================
 // 1. BACKGROUND HANDLERS (Must be top-level)
@@ -67,6 +68,9 @@ void callbackDispatcher() {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 🌟 Load the .env file
+  await dotenv.load(fileName: ".env");
 
   // Initialize Firebase & FCM
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
