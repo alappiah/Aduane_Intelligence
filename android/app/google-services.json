@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "14120582728",
+    "project_id": "aduane-intelligence",
+    "storage_bucket": "aduane-intelligence.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:14120582728:android:2327eb41fcb8ac9181227d",
+        "android_client_info": {
+          "package_name": "com.example.capstone_frontend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC7yDpJZIFj410mT1UVSTn61j1pqyID2wE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

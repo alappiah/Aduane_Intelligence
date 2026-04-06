@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/notification_service.dart';
 import 'home_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -35,7 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // The function that checks credentials with the Python backend
   void _submitLogin() async {
-
+    // 1. Check Internet First
     bool hasInternet = await isConnectedToInternet();
     if (!hasInternet) return;
 
@@ -48,33 +49,42 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => isLoading = true);
 
-    // Call API and catch the user data (it will be null if login fails)
-    // NOTE: Added .toLowerCase() to prevent auto-capitalization bugs!
+    // 2. Attempt Login
     final userData = await ApiService.loginUser(
       email: _emailController.text.trim().toLowerCase(),
       password: _passwordController.text,
     );
 
-    setState(() => isLoading = false);
-
     if (userData != null) {
-      final prefs = await SharedPreferences.getInstance();
+      // 🌟 SUCCESS! Now we have the User ID
+      final int userId = userData['id'];
 
-      // ✅ 2. Convert the userData Map into a JSON String and save it
+      // 3. Get and Sync the FCM Token NOW
+      try {
+        String? token = await NotificationService.getDeviceToken();
+        if (token != null) {
+          await ApiService.updateFCMToken(userId, token);
+          debugPrint("🚀 FCM Token synced for User: $userId");
+        }
+      } catch (e) {
+        debugPrint("⚠️ Token sync failed, but continuing login: $e");
+      }
+
+      // 4. Save to SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
       String userDataString = jsonEncode(userData);
       await prefs.setString('saved_user', userDataString);
-      // If it's not null, login was successful!
+
+      setState(() => isLoading = false);
+
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder:
-                (context) =>
-                    HomeScreen(user: userData), // Pass the userData map
-          ),
+          MaterialPageRoute(builder: (context) => HomeScreen(user: userData)),
         );
       }
     } else {
+      setState(() => isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Invalid email or password")),

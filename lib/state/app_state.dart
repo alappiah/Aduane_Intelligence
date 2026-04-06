@@ -176,13 +176,20 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     bool hasInternet = await isConnectedToInternet();
     if (!hasInternet) return;
 
+    // 1. Sync the FCM Token (Handshake)
+    String? token = await NotificationService.getDeviceToken();
+    if (token != null) {
+      await ApiService.updateFCMToken(userId, token);
+    }
+
     currentUserId = userId;
+
+    // 2. Fetch the "Master" data for today
     final data = await ApiService.fetchTodayDashboard(userId);
 
     if (data != null) {
+      // --- 🟢 BASIC STATS ---
       daysActive = data['daysActive'] ?? 0;
-
-      // 🌟 TRIGGER THE DYNAMIC ALARMS
       _scheduleDynamicReminders(daysActive);
 
       final int dbSteps = data['steps'] ?? 0;
@@ -191,7 +198,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         _lastSyncedSteps = dbSteps;
       }
 
-      meals.clear();
+      // --- 🍱 MEALS LOGIC (Restored!) ---
+      meals.clear(); // Clear so we don't double-count on refresh
       if (data['meals'] != null) {
         for (var m in data['meals']) {
           meals.add(
@@ -210,6 +218,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         }
       }
 
+      // --- 🏋️ WORKOUTS LOGIC (Restored!) ---
       workouts.clear();
       if (data['workouts'] != null) {
         for (var w in data['workouts']) {
@@ -225,10 +234,30 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         }
       }
 
+      // --- 🏆 ACHIEVEMENT LOGIC (The Badge Fix) ---
+      achievements.clear();
       if (data['achievements'] != null) {
-        achievements = List<String>.from(data['achievements']);
+        final List<dynamic> rawAchievements = data['achievements'];
+
+        achievements =
+            rawAchievements
+                .map((dynamic item) {
+                  if (item is Map) {
+                    // Matches your Supabase column: 'achievement_key'
+                    return (item['achievement_key']?.toString() ?? "")
+                        .toLowerCase();
+                  }
+                  return item.toString().toLowerCase();
+                })
+                .where((s) => s.isNotEmpty)
+                .toList();
+
+        debugPrint(
+          "🏆 Dashboard Refresh: ${achievements.length} badges, ${meals.length} meals loaded.",
+        );
       }
-      notifyListeners();
+
+      notifyListeners(); // 🌟 This triggers the Activity Hub to show the new counts!
     }
   }
 
@@ -290,20 +319,36 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       }
 
       // VIP PASS WRAPPER
+      // VIP PASS WRAPPER
       if (!_hasHealthPermissions) {
+        // 1. Quietly check if the user already gave us permission previously
         bool? alreadyGranted = await health.hasPermissions(
           types,
           permissions: permissions,
         );
 
-        _hasHealthPermissions = await health.requestAuthorization(
-          types,
-          permissions: permissions,
-        );
+        if (alreadyGranted == true) {
+          _hasHealthPermissions = true;
+        } else {
+          // 2. If we don't have permission, try to request it.
+          // We wrap this in a try/catch because background tasks cannot open pop-ups!
+          try {
+            _hasHealthPermissions = await health.requestAuthorization(
+              types,
+              permissions: permissions,
+            );
+          } catch (e) {
+            debugPrint("⚠️ Background task cannot launch permission screen.");
+            return; // Abort sync until they open the app manually
+          }
+        }
 
+        // 3. If we STILL don't have permission, handle the denial safely
         if (!_hasHealthPermissions) {
-          debugPrint("❌ Health permissions silently denied by OS.");
-          if (!_hasShownSettingsDialog && alreadyGranted == false) {
+          debugPrint("❌ Health permissions missing.");
+
+          // Only attempt to show the dialog if the app is actually open (foreground)
+          if (!_hasShownSettingsDialog && navigatorKey.currentContext != null) {
             _hasShownSettingsDialog = true;
             _promptUserToOpenSettings();
           }
@@ -339,19 +384,25 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         try {
           for (var point in healthData) {
             if (point.type == HealthDataType.ACTIVE_ENERGY_BURNED) {
-              // This is the official, safe way to extract the number
-              var rawValue = point.value;
+              // 🌟 DIAGNOSTIC: See exactly what the OS is returning
+              debugPrint(
+                "🔥 RAW CALORIE DATA: ${point.value} from ${point.sourceId}",
+              );
 
-              // Check if the package is returning the standard numeric value
-              // Note: Depending on the exact package version, 'rawValue' might just
-              // be cast directly. We check both to be 100% safe.
               try {
-                // Try the standard property first
-                totalActiveCalories += double.parse(
-                  rawValue.toString().replaceAll(RegExp(r'[^0-9.]'), ''),
-                );
+                // The official way to extract numbers in modern Health packages
+                if (point.value is NumericHealthValue) {
+                  totalActiveCalories +=
+                      (point.value as NumericHealthValue).numericValue
+                          .toDouble();
+                } else {
+                  // The fallback for older package versions
+                  totalActiveCalories += double.parse(
+                    point.value.toString().replaceAll(RegExp(r'[^0-9.]'), ''),
+                  );
+                }
               } catch (e) {
-                debugMessage = "Parse err: ${rawValue.toString()}";
+                debugPrint("Parse err on point: ${point.value}");
               }
             }
           }
@@ -366,9 +417,15 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
           debugPrint("UI ERROR: $debugMessage");
         }
 
-        dailyActiveCalories = totalActiveCalories.toInt();
+        if (totalActiveCalories == 0.0 && steps > 0) {
+          debugPrint("⚠️ Health Connect vault is empty for calories. Using step estimation.");
+          
+          // Multiply steps by 0.04 (e.g., 1000 steps = 40 calories)
+          totalActiveCalories = steps * 0.04; 
+        }
 
         dailyActiveCalories = totalActiveCalories.toInt();
+
         notifyListeners();
 
         if (steps >= 0 && steps != dailySteps) {
@@ -401,11 +458,23 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
             List<String> earnedBadges = await ApiService.syncStepsToDatabase(
               userId: currentUserId!,
               steps: dailySteps,
+              calories: dailyActiveCalories,
             );
 
             _lastSyncedSteps = dailySteps;
 
             if (earnedBadges.isNotEmpty) {
+              // 🌟 1. Update the local list so the UI (Activity Hub) sees it
+              for (var badge in earnedBadges) {
+                if (!achievements.contains(badge)) {
+                  achievements.add(badge);
+                }
+              }
+
+              // 🌟 2. Trigger UI Refresh
+              notifyListeners();
+
+              // 🌟 3. Show the popups
               for (String badgeKey in earnedBadges) {
                 _showAchievementPopup(badgeKey);
               }

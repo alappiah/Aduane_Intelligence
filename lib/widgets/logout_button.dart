@@ -110,11 +110,13 @@ class LogoutButton extends StatelessWidget {
                       final currentSteps = appState.dailySteps;
                       // Note: Adjust 'id' if your profile object uses a different variable name for the user ID (like userId)
                       final userId = appState.currentUserId;
+                      final dailyActiveCalories = appState.dailyActiveCalories;
 
                       if (userId != null) {
                         await ApiService.syncStepsToDatabase(
                           userId: userId,
                           steps: currentSteps,
+                          calories: dailyActiveCalories,
                         );
                       }
 
