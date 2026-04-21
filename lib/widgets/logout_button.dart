@@ -125,7 +125,7 @@ class LogoutButton extends StatelessWidget {
                       await prefs.remove('saved_user');
 
                       // 🌟 5. RESET LOCAL STATE
-                      appState.dailySteps = 0;
+                      appState.resetState();
                       // If you have a method to clear the whole profile, call it here!
 
                       // 6. SHOW SNACKBAR & NAVIGATE (Must check mounted after using await)

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../theme/app_colors.dart';
 import 'custom_card.dart';
+import '../screens/login_screen.dart';
 import '../widgets/log_meal_sheet.dart';
 import '../widgets/add_workout_sheet.dart';
 import '../widgets/change_password_sheet.dart';
@@ -161,16 +162,15 @@ void _showDeleteConfirmation(BuildContext context, int currentUserId) {
 
               // 2. Call your new Dio endpoint
               bool success = await ApiService.deleteAccount(currentUserId);
+              if (!context.mounted) return;
 
               if (success) {
                 // 3. Clear local state (if using Provider/Riverpod)
                 // Provider.of<AppState>(context, listen: false).clearData();
 
-                // 4. Send them back to the Login Screen
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  '/login', // Replace with your actual login route
-                  (Route<dynamic> route) =>
-                      false, // Destroys all previous routes
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
