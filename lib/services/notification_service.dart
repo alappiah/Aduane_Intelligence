@@ -98,14 +98,21 @@ class NotificationService {
     required String title,
     required String body,
   }) async {
-    const NotificationDetails details = NotificationDetails(
+    // 1. Remove 'const' from the beginning
+    NotificationDetails details = NotificationDetails(
       android: AndroidNotificationDetails(
         'aduane_channel',
         'Aduane Alerts',
         importance: Importance.max,
         priority: Priority.high,
+        // 👇 2. ADD THIS BLOCK TO FIX THE ARROW 👇
+        styleInformation: BigTextStyleInformation(
+          body,
+          contentTitle: title,
+          htmlFormatBigText: true,
+        ),
       ),
-      iOS: DarwinNotificationDetails(),
+      iOS: const DarwinNotificationDetails(), // You can move const down here
     );
     await _notificationsPlugin.show(id, title, body, details);
   }

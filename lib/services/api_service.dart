@@ -352,6 +352,30 @@ class ApiService {
     }
   }
 
+  static Future<bool> deleteAccount(int userId) async {
+    try {
+      final response = await _dio.delete(
+        '$baseUrl/users/$userId/delete-account',
+      );
+
+      if (response.statusCode == 200) {
+        print("✅ Account deleted successfully from database");
+        return true;
+      }
+      return false;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        print("❌ User not found.");
+      } else {
+        print("❌ Server Error deleting account: ${e.message}");
+      }
+      return false;
+    } catch (e) {
+      print("❌ Unknown Error: $e");
+      return false;
+    }
+  }
+
   // =========================================================
   // 💬 CHAT & AI ENDPOINTS
   // =========================================================

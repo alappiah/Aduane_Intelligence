@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/api_service.dart';
 import '../theme/app_colors.dart';
 import 'custom_card.dart';
 import '../widgets/log_meal_sheet.dart';
@@ -59,6 +60,21 @@ class SettingsCard extends StatelessWidget {
               showChangePasswordSheet(context, user); // Calls the new sheet
             },
           ),
+
+          _divider(),
+
+          _settingsNavRow(
+            icon: Icons.delete_forever_rounded,
+            iconColor: AppColors.orange, // Fixed the color error
+            iconBg: AppColors.orangeLight, // Fixed the color error
+            label: 'Delete Account',
+            onTap: () {
+              _showDeleteConfirmation(
+                context,
+                user['id'],
+              ); // Calls the new sheet
+            },
+          ),
         ],
       ),
     );
@@ -115,4 +131,57 @@ class SettingsCard extends StatelessWidget {
 
   Widget _divider() =>
       Divider(color: AppColors.divider, height: 1, thickness: 1);
+}
+
+void _showDeleteConfirmation(BuildContext context, int currentUserId) {
+  showDialog(
+    context: context,
+    builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        title: const Text(
+          "Delete Account?",
+          style: TextStyle(color: Colors.red),
+        ),
+        content: const Text(
+          "This action cannot be undone. All your meals, workouts, achievements, and chat history will be permanently erased.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(), // Cancel
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              // 1. Close the dialog
+              Navigator.of(dialogContext).pop();
+
+              // 2. Call your new Dio endpoint
+              bool success = await ApiService.deleteAccount(currentUserId);
+
+              if (success) {
+                // 3. Clear local state (if using Provider/Riverpod)
+                // Provider.of<AppState>(context, listen: false).clearData();
+
+                // 4. Send them back to the Login Screen
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/login', // Replace with your actual login route
+                  (Route<dynamic> route) =>
+                      false, // Destroys all previous routes
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Failed to delete account.')),
+                );
+              }
+            },
+            child: const Text("Delete Permanently"),
+          ),
+        ],
+      );
+    },
+  );
 }
