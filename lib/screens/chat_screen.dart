@@ -32,7 +32,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   int? _editingUserMsgId;
   int? _editingAiMsgId;
-  int? _editingUiIndex; // Which bubble on the screen are we overwriting?
+  int? _editingUiIndex; 
   int _currentCaloriesEatenToday = 0;
 
   @override
@@ -45,7 +45,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     _textController.dispose();
-    _focusNode.dispose(); // <-- ADD THIS
+    _focusNode.dispose(); 
     super.dispose();
   }
 
@@ -81,7 +81,7 @@ class _ChatScreenState extends State<ChatScreen> {
     int index,
     Map<String, dynamic> actionData,
   ) async {
-    // Use your static ApiService function!
+    
     bool success = await ApiService.logMeal(
       userId: widget.user['id'],
       name: actionData['food_name'],
@@ -91,7 +91,7 @@ class _ChatScreenState extends State<ChatScreen> {
       protein: 0,
       fats: 0,
       sodium: 0,
-      sugar: 0, // Fill these as needed
+      sugar: 0,
       time: DateTime.now().toIso8601String(),
     );
 
@@ -117,20 +117,19 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.trim().isEmpty) return;
 
     if (_editingUserMsgId != null && _editingUiIndex != null) {
-      // --- 🟢 IN-PLACE UPDATE MODE ---
+     
       final uIdx = _editingUiIndex!;
-      int aIdx = uIdx + 1; // Changed from 'final' to 'int'
+      int aIdx = uIdx + 1; 
 
       setState(() {
         _messages[uIdx]['text'] = text; // Update user bubble
 
-        // 🌟 THE FIX: Safely check if the AI bubble exists!
         if (aIdx < _messages.length && _messages[aIdx]['isMe'] == false) {
-          // The AI bubble exists, clear it for re-streaming
+          
           _messages[aIdx]['text'] = "";
           _messages[aIdx]['recipes'] = [];
         } else {
-          // There is no AI bubble here! Insert a brand new placeholder
+          
           _messages.insert(aIdx, {"isMe": false, "text": "", "recipes": []});
         }
 
@@ -140,7 +139,7 @@ class _ChatScreenState extends State<ChatScreen> {
       _textController.clear();
       await ApiService.updateChatMessage(_editingUserMsgId!, text);
 
-      // Pass the existing AI ID to update the same row
+      
       await _startAiStream(text, aIdx, existingAiId: _editingAiMsgId);
 
       // Reset edit state
@@ -150,7 +149,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _editingUiIndex = null;
       });
     } else {
-      // --- ⚪ NORMAL MODE ---
+      
       setState(() {
         _messages.add({"isMe": true, "text": text, "recipes": []});
         _isLoading = true;
@@ -187,7 +186,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (dashboardData != null && mounted) {
       setState(() {
-        // NOTE: Change 'total_calories' to match the exact key your FastAPI dashboard returns!
+        
         _currentCaloriesEatenToday = dashboardData['total_calories'] ?? 0;
       });
     }

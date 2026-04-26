@@ -54,7 +54,7 @@ class _LogMealSheetState extends State<_LogMealSheet> {
     super.dispose();
   }
 
-  // 🌟 4. Make _submit async so we can await the API call!
+ 
   void _submit() async {
     bool hasInternet = await isConnectedToInternet();
     if (!hasInternet) return;
@@ -88,7 +88,7 @@ class _LogMealSheetState extends State<_LogMealSheet> {
       time: time,
     );
 
-    // If it fails, show an error and stop
+    
     if (!success) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -101,7 +101,7 @@ class _LogMealSheetState extends State<_LogMealSheet> {
       return;
     }
 
-    // 🌟 2. SUCCESS! CANCEL THE ALARM!
+    
     if (_selectedMealType == 'Breakfast') {
       NotificationService.cancelNotification(201);
     } else if (_selectedMealType == 'Lunch') {
@@ -110,7 +110,7 @@ class _LogMealSheetState extends State<_LogMealSheet> {
       NotificationService.cancelNotification(203);
     }
 
-    // 🌟 6. If the API succeeds, update the local UI!
+    
     AppState().addMeal(
       MealEntry(
         name: name,

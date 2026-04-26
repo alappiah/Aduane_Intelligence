@@ -127,7 +127,7 @@ class ApiService {
   ) async {
     try {
       final response = await _dio.post(
-        '/auth/change-password', // Note: we rely on your base URL setup
+        '$baseUrl/auth/change-password', 
         data: {
           'user_id': userId,
           'current_password': currentPassword,
