@@ -29,8 +29,6 @@ The application offers a robust suite of features including:
 - **Analytics**: Weekly insights and dynamic progress cards.
 - **Interactive Chat**: A built-in chat screen interface for real-time interaction.
 
-**Live Demo:** `[Insert TestFlight / Google Play Testing Link Here]`
-
 ---
 
 ## Tech Stack
