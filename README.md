@@ -10,7 +10,6 @@
   - [Firebase Setup (Mobile)](#firebase-setup-mobile)
   - [Environment Variables](#environment-variables)
   - [Running Locally](#running-locally)
-  - [Building for Production](#building-for-production)
 - [Project Structure](#project-structure)
 - [Available Scripts](#available-scripts)
 - [API Integration](#api-integration)
@@ -57,7 +56,7 @@ Ensure your development environment meets the following requirements before proc
 - **Dart SDK**: `^3.0.0` or higher
 - **Package manager**: `pub` (bundled with Flutter)
 - **IDEs**: VS Code (with Flutter extension) or Android Studio
-- **System Requirements**: Xcode (for iOS builds) and Android Studio (for Android builds)
+- **System Requirements**: Android Studio (for Android builds) or Visual Studio Code
 
 ---
 
@@ -89,8 +88,6 @@ flutter pub get
 To connect to the backend and third-party services, you need to configure your environment. Create a `.env` file in the root directory and add the following:
 
 ```env
-# API Configuration
-API_BASE_URL=https://api.aduane-intelligence.com/v1
 
 # General Firebase Config
 FIREBASE_PROJECT_ID=aduane-intelligence
@@ -125,18 +122,6 @@ flutter run
 ```
 
 The local development environment will hot-reload automatically upon saving changes.
-
-### Building for Production
-
-To generate release builds for app stores, the output binaries will be placed in `build/app/outputs/`:
-
-```bash
-# Build Android App Bundle (AAB) for Google Play
-flutter build appbundle --release
-
-# Build iOS Archive (IPA) for App Store
-flutter build ipa --release
-```
 
 ---
 
