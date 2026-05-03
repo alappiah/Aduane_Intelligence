@@ -148,7 +148,7 @@ class ApiService {
   // 👤 USER DATA & DASHBOARD ENDPOINTS
   // =========================================================
 
-  // 🌟 NEW: FETCH USER PROFILE (Fixes the "Sarah Rivera" bug)
+  
   static Future<Map<String, dynamic>?> fetchUserProfile(int userId) async {
     try {
       final response = await _dio.get('$baseUrl/users/$userId/profile');
@@ -291,7 +291,7 @@ class ApiService {
   static Future<List<String>> syncStepsToDatabase({
     required int userId,
     required int steps,
-    required int calories, // 🌟 NEW: Added the calories parameter
+    required int calories, 
   }) async {
     try {
       final today = DateTime.now();
@@ -304,12 +304,12 @@ class ApiService {
           'user_id': userId,
           'date': dateString,
           'steps': steps,
-          'calories_burned': calories, // 🌟 NEW: Send to Python backend
+          'calories_burned': calories, 
         },
       );
 
       if (response.statusCode == 200) {
-        // 🌟 Extract the list of new achievements from the backend response
+        
         List<dynamic> newBadges = response.data['new_achievements'] ?? [];
         return List<String>.from(newBadges);
       }
@@ -322,8 +322,7 @@ class ApiService {
 
   static Future<void> updateFCMToken(int userId, String token) async {
     try {
-      // Dio automatically encodes the Map into JSON
-      // and adds 'application/json' headers for you!
+      
       final response = await _dio.post(
         '$baseUrl/users/$userId/update-fcm-token',
         data: {'fcm_token': token},

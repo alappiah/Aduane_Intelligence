@@ -9,7 +9,7 @@ import '../widgets/add_workout_sheet.dart';
 import '../widgets/change_password_sheet.dart';
 
 class SettingsCard extends StatelessWidget {
-  final Map<String, dynamic> user; // 🌟 1. Define the user variable here
+  final Map<String, dynamic> user; 
 
   const SettingsCard({super.key, required this.user});
 

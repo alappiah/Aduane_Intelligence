@@ -103,7 +103,7 @@ class ActivityHubCard extends StatelessWidget {
                 mainAxisSpacing: 20,
                 crossAxisSpacing: 20,
                 children: [
-                  // 🌟 Dynamic Check: We check if the key exists in the appState list
+                  // check if the key exists in the appState list
                   _buildAchievementIcon(
                     "first_steps", 
                     "First Steps", 

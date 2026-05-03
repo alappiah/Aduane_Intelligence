@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // 🌟 Added for clearing storage
+import 'package:shared_preferences/shared_preferences.dart'; 
 
 import '../theme/app_colors.dart';
 import '../screens/login_screen.dart';
-import '../services/api_service.dart'; // 🌟 Added to sync steps
-import '../state/app_state.dart'; // 🌟 Added to get and reset steps
+import '../services/api_service.dart'; 
+import '../state/app_state.dart'; 
 
 class LogoutButton extends StatelessWidget {
   const LogoutButton({super.key});
@@ -100,12 +100,12 @@ class LogoutButton extends StatelessWidget {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    // 🌟 1. MADE THIS ONPRESSED ASYNC
+                    
                     onPressed: () async {
-                      // 2. Close the dialog immediately so it feels fast
+                      // Close the dialog immediately so it feels fast
                       Navigator.pop(dialogContext);
 
-                      // 🌟 3. GRAB DATA & SYNC TO DATABASE
+                      // GRAB DATA & SYNC TO DATABASE
                       final appState = AppState();
                       final currentSteps = appState.dailySteps;
                       // Note: Adjust 'id' if your profile object uses a different variable name for the user ID (like userId)
@@ -120,15 +120,14 @@ class LogoutButton extends StatelessWidget {
                         );
                       }
 
-                      // 🌟 4. CLEAR LOCAL HARD DRIVE (Fixes auto-login bug)
+                      // CLEAR LOCAL HARD DRIVE 
                       final prefs = await SharedPreferences.getInstance();
                       await prefs.remove('saved_user');
 
-                      // 🌟 5. RESET LOCAL STATE
+                      // RESET LOCAL STATE
                       appState.resetState();
-                      // If you have a method to clear the whole profile, call it here!
 
-                      // 6. SHOW SNACKBAR & NAVIGATE (Must check mounted after using await)
+                      // SHOW SNACKBAR & NAVIGATE 
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(

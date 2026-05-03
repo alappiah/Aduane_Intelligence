@@ -35,15 +35,15 @@ class _DailyGoalsCardState extends State<DailyGoalsCard> {
     final state = AppState();
     final profile = state.profile;
 
-    // 🌟 1. The Math is now Daily! No more multiplying by 7.
+   
     final int dailyCalorieGoal = profile.goalCalories;
     final int dailyStepGoal = profile.goalSteps;
 
-    // 🌟 2. Get Current Progress for TODAY
+   
     final int currentCalories = state.totalCaloriesConsumed;
     final int currentSteps = state.dailySteps; // Driven by the hardware pedometer!
 
-    // 🌟 3. Calculate Percentages
+    
     double caloriePercent = dailyCalorieGoal > 0 ? currentCalories / dailyCalorieGoal : 0.0;
     double stepPercent = dailyStepGoal > 0 ? currentSteps / dailyStepGoal : 0.0;
 
@@ -87,8 +87,7 @@ class _DailyGoalsCardState extends State<DailyGoalsCard> {
             ],
           ),
           
-          // 🌟 THE NEW UI HINT!
-          // This will dynamically appear and disappear based on the vault
+          
           if (currentSteps == 0) ...[
             const SizedBox(height: 20),
             Container(

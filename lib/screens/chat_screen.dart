@@ -96,10 +96,10 @@ class _ChatScreenState extends State<ChatScreen> {
     );
 
     if (success) {
-      // 🌟 1. Refresh Global Dashboard (Steps/Cals)
+      // Refresh Global Dashboard (Steps/Cals)
       await AppState().loadDashboardData(widget.user['id']);
 
-      // 🌟 2. HIDE THE BUTTON: Clear log_data from this specific message
+      
       setState(() {
         _messages[index]['log_data'] = null;
       });
@@ -200,10 +200,10 @@ class _ChatScreenState extends State<ChatScreen> {
     _cancelToken = CancelToken();
     setState(() => _isGenerating = true);
 
-    // 🌟 1. THE SAFETY LOCK: Prevents saving the same message twice
+    // Prevents saving the same message twice
     bool hasSaved = false;
 
-    // 🌟 2. THE HELPER: A single source of truth for saving to the DB
+    
     Future<void> finalizeAndSave() async {
       if (hasSaved) return; // If we already saved it, stop.
       hasSaved = true;
@@ -294,7 +294,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     );
                     _scrollToBottom();
                   }
-                  // 🌟 FIXED SYNTAX HERE:
+                  
                   else if (packet['type'] == 'log_action') {
                     setState(() {
                       _messages[aiIndex]['log_data'] = packet;
@@ -401,7 +401,7 @@ class _ChatScreenState extends State<ChatScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        // 🌟 ADD THIS ACTIONS BLOCK:
+        
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_sweep, color: Colors.redAccent),
@@ -455,7 +455,7 @@ class _ChatScreenState extends State<ChatScreen> {
     required List<dynamic> recipes,
     required bool isEditable,
   }) {
-    // 🌟 FIX 1: Define 'msg' so the widget knows which message data to look at
+    
     final msg = _messages[index];
 
     return Column(
@@ -535,8 +535,8 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
 
-        // 🌟 FIX 2: LOG ACTION CARD
-        // Check if log_data exists and isn't null
+        
+        
         if (msg['log_data'] != null) ...[
           const SizedBox(height: 10),
           Padding(
@@ -613,7 +613,7 @@ class _ChatScreenState extends State<ChatScreen> {
               controller: _textController,
               focusNode: _focusNode,
 
-              // 🌟 THE MAGIC 3 LINES FOR AUTO-EXPANDING:
+              
               minLines: 1, // Starts as a normal 1-line box
               maxLines:
                   5, // Grows taller up to 5 lines, then scrolls internally
@@ -678,8 +678,8 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             TextButton(
               onPressed: () async {
-                // 🌟 1. CAPTURE THE MESSENGER BEFORE DOING ANYTHING ELSE
-                // This saves the tool we need while the context is still perfectly valid.
+                
+                
                 final messenger = ScaffoldMessenger.of(context);
 
                 // 2. Close the popup dialog
@@ -694,7 +694,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   widget.user['id'],
                 );
 
-                // 🌟 5. CRITICAL FIX: Check if the screen is still open after the await!
+                
                 if (!mounted) return;
 
                 if (success) {
@@ -711,8 +711,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     });
                   });
 
-                  // 🌟 6. SHOW THE SNACKBAR SAFELY
-                  // We use the 'messenger' variable we captured in Step 1, completely bypassing the context error.
+              
+                  
                   messenger.showSnackBar(
                     const SnackBar(
                       content: Text("Chat history successfully deleted"),

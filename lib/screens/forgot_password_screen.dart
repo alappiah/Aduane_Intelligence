@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-// You will import your OTP screen here later!
 import 'otp_verification_screen.dart';
 import '../services/api_service.dart';
 
@@ -21,14 +20,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
-  // This is where we will eventually call your FastAPI endpoint!
+  
   Future<void> _requestResetCode() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // 🌟 Use your ApiService instead of the fake delay!
+      
       await ApiService.requestPasswordReset(_emailController.text);
       
       if (!mounted) return;
@@ -37,7 +36,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const SnackBar(content: Text('Reset code sent to your email!')),
       );
       
-      // 🌟 Uncommented Navigation!
+      
       Navigator.push(
         context,
         MaterialPageRoute(

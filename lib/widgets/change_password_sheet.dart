@@ -22,7 +22,7 @@ void showChangePasswordSheet(BuildContext context, Map<String, dynamic> user) {
         builder: (BuildContext context, StateSetter setState) {
           return Padding(
             padding: EdgeInsets.only(
-              // 🌟 THE FIX: Keyboard Height + System Nav Bar Height + 24px extra space
+              
               bottom:
                   MediaQuery.of(context).viewInsets.bottom +
                   MediaQuery.of(context).padding.bottom +

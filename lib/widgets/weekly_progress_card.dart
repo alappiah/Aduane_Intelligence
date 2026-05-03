@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 import '../theme/app_colors.dart';
-import '../screens/weekly_insights_screen.dart'; // 🌟 Import your new screen
+import '../screens/weekly_insights_screen.dart'; 
 import 'custom_card.dart';
 
 class WeeklyProgressCard extends StatelessWidget {
@@ -15,7 +15,7 @@ class WeeklyProgressCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
-        // 🌟 Navigate to the full charts screen
+        
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const WeeklyInsightsScreen()),

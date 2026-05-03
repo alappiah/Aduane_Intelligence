@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart'; // Make sure this path matches where you put api_service.dart
+import '../services/api_service.dart'; 
 import '../services/network_helper.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
-  // 1. ADDED: Variables to catch the data passed from RegisterScreen
+  
   final String email;
   final String password;
 
@@ -18,10 +18,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   List<String> items = <String>["Hypertension", "Cholesterol", "Diabetes"];
   String? selectedCondition;
   
-  // 2. ADDED: State variable to show a loading spinner while waiting for the server
+ 
   bool isLoading = false; 
 
-  // 3. ADDED: Controllers to grab the text the user types
+ 
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
 
@@ -32,12 +32,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     super.dispose();
   }
 
-  // 4. ADDED: The function that actually talks to your backend
+  
   void _submitRegistration() async {
     bool hasInternet = await isConnectedToInternet();
     if (!hasInternet) return;
 
-    // Safety check: Make sure they didn't leave anything blank
+    // Make sure they didn't leave anything blank
     if (_firstNameController.text.isEmpty || _lastNameController.text.isEmpty || selectedCondition == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please fill all fields")));
       return;
@@ -57,7 +57,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     setState(() => isLoading = false); // Turn off loading spinner
 
     if (success) {
-      // If it worked, take them back to the login screen!
+      
       if (mounted) Navigator.pushNamed(context, "/"); 
     } else {
       if (mounted) {
@@ -184,7 +184,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  // 5. ADDED: Connect the button to the function (or disable it if loading)
+                  
                   onPressed: isLoading ? null : _submitRegistration,
                   child: isLoading 
                       ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
@@ -229,7 +229,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     );
   }
 
-  // 6. ADDED: Allow the helper widget to accept the text controllers
+  
   Widget _buildTextField({required String hintText, bool isPassword = false, TextEditingController? controller}) {
     return TextField(
       controller: controller, // <-- Connects the UI to the controller

@@ -85,7 +85,7 @@ class RecipeCard extends StatelessWidget {
     }
   }
 
-  // 🌟 THE NEW LOGIC: Slide-up Recipe Sheet
+  
   void _showRecipeDetails(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -230,7 +230,7 @@ class RecipeCard extends StatelessWidget {
                 ),
               ),
 
-              // 🌟 NEW: "RECIPE" BUTTON ON THE TOP LEFT
+              
               Positioned(
                 top: 8,
                 left: 8,

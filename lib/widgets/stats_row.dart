@@ -15,7 +15,7 @@ class _StatsRowState extends State<StatsRow> {
   @override
   void initState() {
     super.initState();
-    // 🌟 Listen for step counts and newly logged meals/workouts!
+    
     AppState().addListener(_onStateChanged);
   }
 
@@ -51,7 +51,7 @@ class _StatsRowState extends State<StatsRow> {
             _verticalDivider(),
             Expanded(
               child: _statItem(
-                '${state.dailySteps}', // 🌟 Live Pedometer Feed!
+                '${state.dailySteps}', 
                 'Steps',
                 Icons.directions_walk_rounded,
                 AppColors.pink,
@@ -61,7 +61,7 @@ class _StatsRowState extends State<StatsRow> {
             _verticalDivider(),
             Expanded(
               child: _statItem(
-                '${state.totalCaloriesConsumed}', // 🌟 From Meal Logs
+                '${state.totalCaloriesConsumed}',
                 'Consumed',
                 Icons.restaurant_rounded,
                 AppColors.teal,
@@ -71,7 +71,7 @@ class _StatsRowState extends State<StatsRow> {
             _verticalDivider(),
             Expanded(
               child: _statItem(
-                '${state.totalCaloriesBurned}', // 🌟 From Workout Logs
+                '${state.totalCaloriesBurned}', 
                 'Burned',
                 Icons.whatshot_rounded,
                 AppColors.purple,

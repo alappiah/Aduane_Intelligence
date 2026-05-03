@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-// 🌟 1. The Global Key
+
 final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey = 
     GlobalKey<ScaffoldMessengerState>();
     final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-// 🌟 2. The Warning Function
+
 void showOfflineWarning() {
   rootScaffoldMessengerKey.currentState?.showSnackBar(
     SnackBar(
@@ -30,7 +30,7 @@ void showOfflineWarning() {
   );
 }
 
-// 🌟 3. The Active Check
+
 Future<bool> isConnectedToInternet() async {
   final List<ConnectivityResult> results = await Connectivity().checkConnectivity();
   if (results.contains(ConnectivityResult.none) || results.isEmpty) {

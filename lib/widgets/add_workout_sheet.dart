@@ -26,7 +26,7 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
 
-  // 🌟 Split into Hours and Mins!
+  
   final _hoursCtrl = TextEditingController();
   final _minsCtrl = TextEditingController();
 
@@ -44,7 +44,7 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
   @override
   void initState() {
     super.initState();
-    // 🌟 Set the auto-name immediately when the sheet opens
+    
     _generateAutoName();
 
     // Listen to BOTH time fields to calculate calories dynamically
@@ -63,7 +63,7 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
     super.dispose();
   }
 
-  // 🌟 SMART UX: Auto-generates names like "Morning Yoga" or "Evening Sports"
+  // Auto-generates names like "Morning Yoga" or "Evening Sports"
   void _generateAutoName() {
     final hour = DateTime.now().hour;
     String timeOfDay = 'Morning';
@@ -75,7 +75,7 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
     _nameCtrl.text = '$timeOfDay $_selectedType';
   }
 
-  // 🌟 THE AUTO-CALCULATOR (Now handles both Hours and Mins)
+  // THE AUTO-CALCULATOR 
   void _calculateCalories() {
     int h = int.tryParse(_hoursCtrl.text) ?? 0;
     int m = int.tryParse(_minsCtrl.text) ?? 0;
@@ -125,7 +125,7 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
 
     bool hasInternet = await isConnectedToInternet();
     if (!hasInternet) return;
-    // 🌟 Added async here!
+  
     if (!_formKey.currentState!.validate()) return;
 
     final now = TimeOfDay.now();
@@ -148,11 +148,11 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
 
     int calories = int.tryParse(_caloriesCtrl.text) ?? 0;
 
-    // 🌟 1. Grab the current user ID from AppState
+    // 1. Grab the current user ID from AppState
     int currentUserId =
         AppState().currentUserId ?? 1; // Fallback to 1 just in case
 
-    // 🌟 2. Send the data to your FastAPI Backend!
+    // 2. Send the data to your FastAPI Backend!
     bool success = await ApiService.logWorkout(
       userId: currentUserId,
       name: _nameCtrl.text.trim(),
@@ -162,7 +162,7 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
       time: time,
     );
 
-    // 🌟 3. Handle server errors
+    // 3. Handle server errors
     if (!success) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -175,7 +175,7 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
       return;
     }
 
-    // 🌟 4. If the server says OK, update the local UI
+    // 4. If the server says OK, update the local UI
     AppState().addWorkout(
       WorkoutEntry(
         name: _nameCtrl.text.trim(),
@@ -313,7 +313,7 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
 
                 Row(
                   children: [
-                    // 🌟 The New Hours Field
+                    
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,7 +325,7 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    // 🌟 The New Mins Field
+                    
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

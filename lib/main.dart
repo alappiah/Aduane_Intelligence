@@ -69,7 +69,7 @@ void callbackDispatcher() {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 🌟 Load the .env file
+  
   await dotenv.load(fileName: ".env");
 
   // Initialize Firebase & FCM
@@ -80,7 +80,7 @@ void main() async {
   // Initialize Workmanager for Background Sync
   Workmanager().initialize(
     callbackDispatcher,
-    isInDebugMode: false, // 🌟 Set to false before submitting your capstone!
+    isInDebugMode: false, 
   );
 
   Workmanager().registerPeriodicTask(
@@ -134,7 +134,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
 
-    // // 🌟 Wait for the widget tree to build, then grab the REAL AppState
+    // 
     // WidgetsBinding.instance.addPostFrameCallback((_) {
     //   final state = Provider.of<AppState>(context, listen: false);
 

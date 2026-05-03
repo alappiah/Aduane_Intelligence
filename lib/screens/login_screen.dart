@@ -56,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (userData != null) {
-      // 🌟 SUCCESS! Now we have the User ID
+      
       final int userId = userData['id'];
 
       // 3. Get and Sync the FCM Token NOW
@@ -279,7 +279,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return TextField(
       controller: controller,
 
-      // If it's a password field, check our boolean state. Otherwise, never obscure.
+      // If it's a password field, check boolean state. Otherwise, never obscure.
       obscureText: isPassword ? _obscurePassword : false,
 
       decoration: InputDecoration(

@@ -8,7 +8,7 @@ class DailyGoalCircle extends StatelessWidget {
   final String percentText;
   final double percentValue;
   final Color color;
-  final bool isBudgetMode; // 🌟 The new switch to change its behavior!
+  final bool isBudgetMode; 
 
   const DailyGoalCircle({
     super.key,
@@ -24,7 +24,7 @@ class DailyGoalCircle extends StatelessWidget {
     final bool is100Percent = percentValue >= 1.0;
     final bool isNearingLimit = percentValue >= 0.85 && percentValue < 1.0;
 
-    // 🌟 1. Determine Dynamic Color
+    // 1. Determine Dynamic Color
     Color activeColor = color;
     if (isBudgetMode) {
       if (is100Percent) {
@@ -34,7 +34,7 @@ class DailyGoalCircle extends StatelessWidget {
       }
     }
 
-    // 🌟 2. Determine Bottom Label Text
+    // 2. Determine Bottom Label Text
     String bottomLabel = label;
     if (isBudgetMode) {
       if (is100Percent)
@@ -45,7 +45,7 @@ class DailyGoalCircle extends StatelessWidget {
       if (is100Percent) bottomLabel = 'Goal Reached!';
     }
 
-    // 🌟 3. Determine Center Widget (Trophy vs Warning vs Text)
+    // 3. Determine Center Widget (Trophy vs Warning vs Text)
     Widget centerWidget;
     if (!isBudgetMode && is100Percent) {
       // Trophy for hitting step goal!

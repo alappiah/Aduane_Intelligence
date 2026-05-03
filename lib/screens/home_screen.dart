@@ -17,7 +17,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   
-  // 🌟 We use a late list so the pages are only created ONCE
+  
   late List<Widget> _pages;
 
   @override
@@ -30,8 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
       DashboardScreen(user: widget.user),
     ];
 
-    // 2. 🌟 COLD START FIX: Trigger data fetch immediately
-    // This talks to your Render backend the millisecond the app opens.
+    
     Future.microtask(() {
       final userId = widget.user['id'];
       if (userId != null) {
@@ -50,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: Stack(
           children: [
-            // 🌟 3. Use IndexedStack to keep Dashboard 'alive' in the background
+            
             IndexedStack(
               index: _selectedIndex,
               children: _pages,

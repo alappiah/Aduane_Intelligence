@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'login_screen.dart'; // We will navigate here on success!
+import 'login_screen.dart'; 
 import '../services/api_service.dart';
 
 class NewPasswordScreen extends StatefulWidget {
@@ -38,7 +38,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 🌟 Use your ApiService to do the heavy lifting
+    
       await ApiService.resetPassword(
         widget.email,
         widget.resetCode,
@@ -54,8 +54,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
         ),
       );
 
-      // 🌟 Uncommented Navigation!
-      // This wipes the screen history and drops them at the Login Screen
+      
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const LoginScreen()),

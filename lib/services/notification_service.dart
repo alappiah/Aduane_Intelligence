@@ -1,4 +1,4 @@
-import 'package:firebase_messaging/firebase_messaging.dart'; // 🌟 Add this
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -8,14 +8,14 @@ class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
-  // 🌟 NEW: Firebase Messaging Instance
+  
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
   static Future<void> init() async {
     try {
       tz.initializeTimeZones();
 
-      // 1. Local Notification Settings
+      
       const AndroidInitializationSettings androidSettings =
           AndroidInitializationSettings('@drawable/ic_notification');
 
@@ -33,7 +33,7 @@ class NotificationService {
 
       await _notificationsPlugin.initialize(initSettings);
 
-      // 2. Request Firebase Permissions (Android 13+ & iOS)
+      
       NotificationSettings settings = await _messaging.requestPermission(
         alert: true,
         badge: true,
@@ -44,13 +44,12 @@ class NotificationService {
         debugPrint('✅ User granted Firebase permission');
       }
 
-      // 3. Handle Foreground Messages
-      // This is crucial! Without this, if the app is open, nothing happens
-      // when a Firebase message arrives.
+      
+      
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         debugPrint("📩 Firebase Message Received in Foreground!");
 
-        // We use your existing local notification function to show the "Popup"
+        
         if (message.notification != null) {
           showInstantNotification(
             id: message.hashCode,
@@ -63,22 +62,22 @@ class NotificationService {
       debugPrint("⚠️ Notification Init Failed: $e");
     }
 
-    // 1. Handling the tap when the app is in the BACKGROUND
+    
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       debugPrint("🖱️ Notification Tapped while in background!");
       // Example: navigatorKey.currentState?.pushNamed('/activity_hub');
     });
 
-    // 2. Handling the tap when the app was COMPLETELY CLOSED (Terminated)
+    
     RemoteMessage? initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
       debugPrint("🚀 App opened from a terminated state via notification!");
-      // You can handle logic here to deep-link to a specific screen
+      
     }
   }
 
-  // 🌟 NEW: Get the Device Address (Token)
-  // Call this after the user logs in to send their token to your Python backend
+  
+  
   static Future<String?> getDeviceToken() async {
     try {
       String? token = await _messaging.getToken();
@@ -105,14 +104,14 @@ class NotificationService {
         'Aduane Alerts',
         importance: Importance.max,
         priority: Priority.high,
-        // 👇 2. ADD THIS BLOCK TO FIX THE ARROW 👇
+        
         styleInformation: BigTextStyleInformation(
           body,
           contentTitle: title,
           htmlFormatBigText: true,
         ),
       ),
-      iOS: const DarwinNotificationDetails(), // You can move const down here
+      iOS: const DarwinNotificationDetails(), 
     );
     await _notificationsPlugin.show(id, title, body, details);
   }
@@ -153,7 +152,7 @@ class NotificationService {
           importance: Importance.defaultImportance,
         ),
       ),
-      // 🌟 Pro-tip: Use .exactAllowWhileIdle if you need 8 AM to be EXACT
+      
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,

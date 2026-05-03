@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:pinput/pinput.dart';
-import 'new_password_screen.dart'; // We will build this next!
+import 'new_password_screen.dart'; 
 
 
 class OtpVerificationScreen extends StatefulWidget {
-  // 🌟 ADDED: Require the email from the previous screen
+  // Require the email from the previous screen
   final String email;
   
   const OtpVerificationScreen({super.key, required this.email});
@@ -24,7 +24,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     super.dispose();
   }
 
-  // 🌟 ADDED: A helper to move to the next screen
+  // A helper to move to the next screen
   void _goToNewPasswordScreen(String pin) {
     Navigator.push(
       context,
@@ -72,7 +72,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             const SizedBox(height: 32),
             
             Pinput(
-              length: 6, // 🌟 CHANGED: Set to 6 to match your Python backend
+              length: 6, 
               controller: pinController,
               focusNode: focusNode,
               defaultPinTheme: defaultPinTheme,
@@ -83,7 +83,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               ),
               onCompleted: (pin) {
                 print("User entered: $pin");
-                // Auto-navigate when they finish typing the 6th digit!
+                // Auto-navigate when they finish typing the 6th digit
                 _goToNewPasswordScreen(pin); 
               },
             ),

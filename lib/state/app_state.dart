@@ -81,7 +81,7 @@ class UserProfile {
   String get fullName => "$firstName $lastName".trim();
 }
 
-// 🌟 ADDED `with WidgetsBindingObserver` for the Catch-Up Pattern
+
 class AppState extends ChangeNotifier with WidgetsBindingObserver {
   static final AppState _instance = AppState._internal();
   factory AppState() => _instance;
@@ -125,7 +125,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   int get totalSugar => meals.fold(0, (sum, m) => sum + m.sugar);
 
   // =========================================================
-  // 🌟 DYNAMIC NOTIFICATION SCHEDULER
+  // DYNAMIC NOTIFICATION SCHEDULER
   // =========================================================
   void _scheduleDynamicReminders(int currentDaysActive) {
     // ID 100: Morning Brief at 8:00 AM
@@ -257,12 +257,12 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         );
       }
 
-      notifyListeners(); // 🌟 This triggers the Activity Hub to show the new counts!
+      notifyListeners(); 
     }
   }
 
   // =========================================================
-  // 🌟 NATIVE HEALTH LOGIC (Catch-Up Pattern)
+  // NATIVE HEALTH LOGIC (Catch-Up Pattern)
   // =========================================================
 
   // Clean up observer if destroyed
@@ -384,7 +384,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         try {
           for (var point in healthData) {
             if (point.type == HealthDataType.ACTIVE_ENERGY_BURNED) {
-              // 🌟 DIAGNOSTIC: See exactly what the OS is returning
+              // 
               debugPrint(
                 "🔥 RAW CALORIE DATA: ${point.value} from ${point.sourceId}",
               );
@@ -410,10 +410,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
           debugMessage = "Loop err: $e";
         }
 
-        // 🌟 ONLY FOR TESTING: Show a snackbar on your phone if something broke
+        
         if (debugMessage != "All good") {
-          // Assuming you have access to a context or a global key. If not,
-          // just assign 'debugMessage' to a visible Text widget on your dashboard!
+          
           debugPrint("UI ERROR: $debugMessage");
         }
 
@@ -464,17 +463,17 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
             _lastSyncedSteps = dailySteps;
 
             if (earnedBadges.isNotEmpty) {
-              // 🌟 1. Update the local list so the UI (Activity Hub) sees it
+              
               for (var badge in earnedBadges) {
                 if (!achievements.contains(badge)) {
                   achievements.add(badge);
                 }
               }
 
-              // 🌟 2. Trigger UI Refresh
+              
               notifyListeners();
 
-              // 🌟 3. Show the popups
+              
               for (String badgeKey in earnedBadges) {
                 _showAchievementPopup(badgeKey);
               }

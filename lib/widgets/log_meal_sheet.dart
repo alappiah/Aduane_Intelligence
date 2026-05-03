@@ -3,11 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 import '../state/app_state.dart';
-import '../services/api_service.dart'; // 🌟 1. Import your ApiService
-import '../services/network_helper.dart'; // 🌟 1. Import your ApiService
+import '../services/api_service.dart'; 
+import '../services/network_helper.dart'; 
 import '../services/notification_service.dart';
 
-// 🌟 2. Update to accept the user payload
+//  2. Update to accept the user payload
 void showLogMealSheet(BuildContext context, Map<String, dynamic> user) {
   showModalBottomSheet(
     context: context,
@@ -22,7 +22,7 @@ void showLogMealSheet(BuildContext context, Map<String, dynamic> user) {
 }
 
 class _LogMealSheet extends StatefulWidget {
-  final Map<String, dynamic> user; // 🌟 3. Accept it in the widget
+  final Map<String, dynamic> user; 
   const _LogMealSheet({super.key, required this.user});
 
   @override
@@ -74,7 +74,7 @@ class _LogMealSheetState extends State<_LogMealSheet> {
     final sodium = int.tryParse(_sodiumCtrl.text) ?? 0;
     final sugar = int.tryParse(_sugarCtrl.text) ?? 0;
 
-    // 🌟 5. Fire the API call first!
+    // Fire the API call first
     bool success = await ApiService.logMeal(
       userId: widget.user['id'], // Get the ID from the passed user map
       name: name,
@@ -263,7 +263,7 @@ class _LogMealSheetState extends State<_LogMealSheet> {
               ),
               const SizedBox(height: 14),
 
-              // 🌟 The New Medical Fields
+              
               Text('Medical Tracking (optional)', style: _labelStyle()),
               const SizedBox(height: 6),
               Row(

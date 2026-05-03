@@ -11,7 +11,7 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   bool isRegister = true;
 
-  // ADDED: State variable to track if the password is hidden or visible
+  // State variable to track if the password is hidden or visible
   bool _obscurePassword = true;
 
   final TextEditingController _emailController = TextEditingController();

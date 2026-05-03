@@ -16,7 +16,7 @@ void showEditProfileSheet(BuildContext context, Map<String, dynamic> user) {
     constraints: BoxConstraints(
       maxHeight:
           MediaQuery.of(context).size.height *
-          0.90, // 🌟 2. Forces it to only take up 90% of the screen, leaving a clean gap at the top!
+          0.90, 
     ),
     builder: (_) => _EditProfileSheet(user: user),
   );
@@ -200,7 +200,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
       return;
     }
 
-    // 🌟 THE COMPLETE FIX: Overwrite EVERY field in the parent map!
+    
     widget.user['firstName'] = _fNameCtrl.text.trim();
     widget.user['lastName'] = _lNameCtrl.text.trim();
     widget.user['email'] = _emailCtrl.text.trim();
@@ -218,12 +218,12 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
         firstName: _fNameCtrl.text.trim(),
         lastName: _lNameCtrl.text.trim(),
         email: _emailCtrl.text.trim(),
-        healthCondition: _selectedHealthCondition, // 🌟 Safe and direct!
+        healthCondition: _selectedHealthCondition, 
         dateOfBirth: _dobCtrl.text.trim(),
         height: _heightCtrl.text.trim(),
         currentWeight: _weightCtrl.text.trim(),
         goalWeight: _goalWeightCtrl.text.trim(),
-        activityLevel: _activityLevel, // 🌟 Safe and direct!
+        activityLevel: _activityLevel,
         goalCalories: int.tryParse(_goalCaloriesCtrl.text.trim()) ?? 2000,
         goalSteps: int.tryParse(_goalStepsCtrl.text.trim()) ?? 10000,
       ),
@@ -260,14 +260,14 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        // 🌟 FIX: We use a Column to separate the pinned drag handle from the scroll view!
+        
         child: Column(
           mainAxisSize:
               MainAxisSize
                   .min, // Shrinks to fit content, up to max screen height
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🌟 1. PINNED DRAG HANDLE
+            
             const SizedBox(height: 16),
             Center(
               child: Container(
@@ -281,7 +281,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
             ),
             const SizedBox(height: 20),
 
-            // 🌟 2. SCROLLABLE FORM
+          
             Flexible(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),

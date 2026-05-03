@@ -42,7 +42,7 @@ android {
 
     buildTypes {
     release {
-        // 🌟 Set these to true for a professional, optimized build
+        
         isMinifyEnabled = true
         isShrinkResources = true
         

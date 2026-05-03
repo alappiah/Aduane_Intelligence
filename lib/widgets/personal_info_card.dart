@@ -15,7 +15,7 @@ class PersonalInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 🌟 Priority: 1. user (Database) | 2. AppState (Fallback/Local Edit)
+    
     final String dob = user['dateOfBirth'] ?? AppState().profile.dateOfBirth;
     final String height = user['height'] ?? AppState().profile.height;
     final String weight = user['currentWeight'] ?? AppState().profile.currentWeight;

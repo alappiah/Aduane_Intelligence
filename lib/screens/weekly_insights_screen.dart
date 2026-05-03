@@ -17,7 +17,7 @@ class _WeeklyInsightsScreenState extends State<WeeklyInsightsScreen> {
   @override
   void initState() {
     super.initState();
-    // 🌟 Trigger the 7-day history fetch the moment the screen opens
+    // Trigger the 7-day history fetch the moment the screen opens
     Future.microtask(() => context.read<AppState>().loadWeeklyInsights());
   }
 
@@ -48,7 +48,7 @@ class _WeeklyInsightsScreenState extends State<WeeklyInsightsScreen> {
                     _buildStepBarChart(appState),
 
                     const SizedBox(height: 30),
-                    _buildSectionTitle("Calorie Balance"), // 🌟 NEW SECTION
+                    _buildSectionTitle("Calorie Balance"), 
                     const SizedBox(height: 10),
                     _buildCalorieLineChart(appState),
 
@@ -77,7 +77,7 @@ class _WeeklyInsightsScreenState extends State<WeeklyInsightsScreen> {
     return CustomCard(
       child: Column(
         children: [
-          // 🌟 Simple Legend
+          
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -264,7 +264,7 @@ Widget _buildActivityList(AppState appState) {
       ConstrainedBox(
         constraints: const BoxConstraints(
           maxHeight: 400,
-        ), // 🌟 Limits height to 400 pixels
+        ), 
         child: ListView.builder(
           shrinkWrap: true, // Keep this if inside a column
           itemCount: history.length,
